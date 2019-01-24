@@ -32,8 +32,6 @@
 //!     };
 //!
 //!     // Keep reading entries till the end of the file has been reached.
-//!     // _ can be replaced with the MRT type contained in your MRT file.
-//!     // Keep reading entries till
 //!     while reader.stream.position() < length {
 //!         let result = reader.read();
 //!         match &result.unwrap() {
