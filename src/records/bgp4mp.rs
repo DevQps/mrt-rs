@@ -1,5 +1,4 @@
 use byteorder::{BigEndian, ReadBytesExt};
-use std::fmt;
 use std::io::{Error, ErrorKind, Read};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
@@ -9,9 +8,9 @@ use crate::AFI;
 ///
 /// The BGP4MP enum represents all possible subtypes of the BGP4MP record type.
 ///
+#[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub enum BGP4MP {
-
     /// Represents a state change of the BGP collector using 16 bit ASN.
     STATE_CHANGE(BGP4MP_STATE_CHANGE),
 
@@ -38,8 +37,7 @@ pub enum BGP4MP {
 }
 
 ///
-/// # Summary
-/// BGP4MP Message which is received when the BGP collector changes states.
+/// Represents a state change in the BGP Finite State Machine (FSM).
 ///
 /// 1 Idle
 /// 2 Connect
@@ -47,20 +45,34 @@ pub enum BGP4MP {
 /// 4 OpenSent
 /// 5 OpenConfirm
 /// 6 Established
+/// More information can found in [RFC4271](https://tools.ietf.org/html/rfc4271#section-8).
 ///
+#[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub struct BGP4MP_STATE_CHANGE {
+    /// The peer ASN from which the BGP message has been received.
     pub peer_as: u16,
+
+    /// The ASN of the AS that received this BGP message.
     pub local_as: u16,
+
+    /// The interface identifier to which this message applies.
     pub interface: u16,
+
+    /// The peer IP address address from which the BGP message has been received.
     pub peer_address: IpAddr,
+
+    /// The IP address of the AS that received this BGP message.
     pub local_address: IpAddr,
+
+    /// The old state of the BGP collector.
     pub old_state: u16,
+
+    /// The new state of the BGP collector.
     pub new_state: u16,
 }
 
 impl BGP4MP_STATE_CHANGE {
-
     fn parse(stream: &mut Read) -> Result<BGP4MP_STATE_CHANGE, Error> {
         let peer_as = stream.read_u16::<BigEndian>()?;
         let local_as = stream.read_u16::<BigEndian>()?;
@@ -89,18 +101,31 @@ impl BGP4MP_STATE_CHANGE {
     }
 }
 
+/// Represents a BGP message (UPDATE, OPEN, NOTIFICATION and KEEPALIVE) using 16bit ASN.
+#[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub struct BGP4MP_MESSAGE {
+    /// The peer ASN from which the BGP message has been received.
     pub peer_as: u16,
+
+    /// The ASN of the AS that received this BGP message.
     pub local_as: u16,
+
+    /// The interface identifier to which this message applies.
     pub interface: u16,
+
+    /// The peer IP address address from which the BGP message has been received.
     pub peer_address: IpAddr,
+
+    /// The IP address of the AS that received this BGP message.
     pub local_address: IpAddr,
+
+    /// The message that has been received.
     pub message: Vec<u8>,
 }
 
 impl BGP4MP_MESSAGE {
-    pub fn parse(header: MRTHeader, stream: &mut Read) -> Result<BGP4MP_MESSAGE, Error> {
+    fn parse(header: MRTHeader, stream: &mut Read) -> Result<BGP4MP_MESSAGE, Error> {
         let peer_as = stream.read_u16::<BigEndian>()?;
         let local_as = stream.read_u16::<BigEndian>()?;
         let interface = stream.read_u16::<BigEndian>()?;
@@ -129,42 +154,31 @@ impl BGP4MP_MESSAGE {
     }
 }
 
-impl fmt::Display for BGP4MP_MESSAGE {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "(Peer AS: {}, Local AS: {}, Interface: {}, Peer IP Address: {}, Local IP Address: {}, Size: {})",
-               self.peer_as,
-               self.local_as,
-               self.interface,
-               self.peer_address,
-               self.local_address,
-               self.message.len())
-    }
-}
-
+/// Represents a BGP message (UPDATE, OPEN, NOTIFICATION and KEEPALIVE) using 32bit ASN.
+#[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub struct BGP4MP_MESSAGE_AS4 {
+    /// The peer ASN from which the BGP message has been received.
     pub peer_as: u32,
+
+    /// The ASN of the AS that received this BGP message.
     pub local_as: u32,
+
+    /// The interface identifier to which this message applies.
     pub interface: u16,
+
+    /// The peer IP address address from which the BGP message has been received.
     pub peer_address: IpAddr,
+
+    /// The IP address of the AS that received this BGP message.
     pub local_address: IpAddr,
+
+    /// The message that has been received.
     pub message: Vec<u8>,
 }
 
-impl fmt::Display for BGP4MP_MESSAGE_AS4 {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "(Peer AS: {}, Local AS: {}, Interface: {}, Peer IP Address: {}, Local IP Address: {}, Size: {})",
-               self.peer_as,
-               self.local_as,
-               self.interface,
-               self.peer_address,
-               self.local_address,
-               self.message.len())
-    }
-}
-
 impl BGP4MP_MESSAGE_AS4 {
-    pub fn parse(header: MRTHeader, stream: &mut Read) -> Result<BGP4MP_MESSAGE_AS4, Error> {
+    fn parse(header: MRTHeader, stream: &mut Read) -> Result<BGP4MP_MESSAGE_AS4, Error> {
         let peer_as = stream.read_u32::<BigEndian>()?;
         let local_as = stream.read_u32::<BigEndian>()?;
         let interface = stream.read_u16::<BigEndian>()?;
@@ -193,19 +207,44 @@ impl BGP4MP_MESSAGE_AS4 {
     }
 }
 
+///
+/// Represents a state change in the BGP Finite State Machine (FSM).
+///
+/// 1 Idle
+/// 2 Connect
+/// 3 Active
+/// 4 OpenSent
+/// 5 OpenConfirm
+/// 6 Established
+/// More information can found in [RFC4271](https://tools.ietf.org/html/rfc4271#section-8).
+///
+#[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub struct BGP4MP_STATE_CHANGE_AS4 {
+    /// The peer ASN from which the BGP message has been received.
     pub peer_as: u32,
+
+    /// The ASN of the AS that received this BGP message.
     pub local_as: u32,
+
+    /// The interface identifier to which this message applies.
     pub interface: u16,
+
+    /// The peer IP address address from which the BGP message has been received.
     pub peer_address: IpAddr,
+
+    /// The IP address of the AS that received this BGP message.
     pub local_address: IpAddr,
+
+    /// The old state of the BGP collector.
     pub old_state: u16,
+
+    /// The new state of the BGP collector.
     pub new_state: u16,
 }
 
 impl BGP4MP_STATE_CHANGE_AS4 {
-    pub fn parse(stream: &mut Read) -> Result<BGP4MP_STATE_CHANGE_AS4, Error> {
+    fn parse(stream: &mut Read) -> Result<BGP4MP_STATE_CHANGE_AS4, Error> {
         let peer_as = stream.read_u32::<BigEndian>()?;
         let local_as = stream.read_u32::<BigEndian>()?;
         let interface = stream.read_u16::<BigEndian>()?;
@@ -233,14 +272,19 @@ impl BGP4MP_STATE_CHANGE_AS4 {
     }
 }
 
+/// Deprecated: Used to record BGP4MP messages in a file.
+#[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub struct BGP4MP_SNAPSHOT {
+    /// The associated view number.
     pub view_number: u16,
+
+    /// The NULL-terminated filename of the file where BGP4MP_ENTRY records are recorded.
     pub filename: Vec<u8>,
 }
 
 impl BGP4MP_SNAPSHOT {
-    pub fn parse(stream: &mut Read) -> Result<BGP4MP_SNAPSHOT, Error> {
+    fn parse(stream: &mut Read) -> Result<BGP4MP_SNAPSHOT, Error> {
         let view_number = stream.read_u16::<BigEndian>()?;
         let mut filename = Vec::new();
 
@@ -258,7 +302,6 @@ impl BGP4MP_SNAPSHOT {
 }
 
 impl BGP4MP {
-
     ///
     /// # Summary
     /// Used to parse sub-types of the BGP4MP MRT record type.
@@ -273,10 +316,11 @@ impl BGP4MP {
     /// # Safety
     /// This function does not make use of unsafe code.
     ///
-    pub fn parse(header: MRTHeader, stream: &mut Read) -> Result<BGP4MP, Error> {
-
-        debug_assert!(header.record_type == 16 || header.record_type == 17,
-                      "Invalid record type in MRTHeader, expected BGP4MP record type.");
+    pub(crate) fn parse(header: MRTHeader, stream: &mut Read) -> Result<BGP4MP, Error> {
+        debug_assert!(
+            header.record_type == 16 || header.record_type == 17,
+            "Invalid record type in MRTHeader, expected BGP4MP record type."
+        );
 
         match header.sub_type {
             0 => Ok(BGP4MP::STATE_CHANGE(BGP4MP_STATE_CHANGE::parse(stream)?)),

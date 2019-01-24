@@ -11,6 +11,7 @@
 //! use std::io::Read;
 //! use mrt_rs::MRTReader;
 //! use mrt_rs::MRTRecord;
+//! use mrt_rs::BGP4MP;
 //! use libflate::gzip::Decoder;
 //!
 //! fn main() {
@@ -32,14 +33,19 @@
 //!
 //!     // Keep reading entries till the end of the file has been reached.
 //!     // _ can be replaced with the MRT type contained in your MRT file.
+//!     // Keep reading entries till
 //!     while reader.stream.position() < length {
-//!        let result = reader.read();
-//!        match &result.unwrap() {
-//!            MRTRecord::BGP4MP(_x) => continue,
-//!            _ => continue
-//!        }
-//!    }
-//!}
+//!         let result = reader.read();
+//!         match &result.unwrap() {
+//!             MRTRecord::BGP4MP(x) => match x {
+//!                 BGP4MP::MESSAGE(y) => println!("{:?}", y),
+//!                 BGP4MP::MESSAGE_AS4(y) => println!("{:?}", y),
+//!                 _ => continue,
+//!             },
+//!             _ => continue,
+//!         }
+//!     }
+//! }
 //! ```
 
 use byteorder::{BigEndian, ReadBytesExt};
@@ -56,7 +62,23 @@ mod records {
     pub mod tabledump;
 }
 
+// Re-export symbols such that they are easily accessible.
+pub use records::bgp::{
+    BGP, BGP4PLUS, BGP4PLUS_MESSAGE, BGP4PLUS_STATE_CHANGE, BGP4PLUS_SYNC, BGP_MESSAGE,
+    BGP_STATE_CHANGE, BGP_SYNC,
+};
+pub use records::bgp4mp::{
+    BGP4MP, BGP4MP_MESSAGE, BGP4MP_MESSAGE_AS4, BGP4MP_SNAPSHOT, BGP4MP_STATE_CHANGE,
+    BGP4MP_STATE_CHANGE_AS4,
+};
+pub use records::ospf::{OSPFv2, OSPFv3};
+pub use records::rip::{RIP, RIPNG};
+pub use records::tabledump::{
+    PeerEntry, RIBEntry, PEER_INDEX_TABLE, RIB_AFI, TABLE_DUMP, TABLE_DUMP_V2,
+};
+
 /// Represents an Address Family Idenfitier. Currently only IPv4 and IPv6 are supported.
+#[derive(Debug)]
 #[repr(u16)]
 enum AFI {
     /// Internet Protocol version 4 (32 bits)
@@ -98,8 +120,8 @@ where
 }
 
 /// Represents the MRT header accompanying every MRT record.
+#[derive(Debug)]
 pub struct MRTHeader {
-
     /// The time at which this message was generated. Represented in UNIX time.
     pub timestamp: u32,
 
@@ -126,6 +148,8 @@ impl fmt::Display for MRTHeader {
     }
 }
 
+/// Represents a single MRT record.
+#[derive(Debug)]
 #[allow(missing_docs)]
 #[allow(non_camel_case_types)]
 pub enum MRTRecord {
@@ -153,7 +177,7 @@ pub enum MRTRecord {
 
 impl<T> MRTReader<T>
 where
-    T: Read
+    T: Read,
 {
     ///
     /// Reads the next MRT record in the stream.
@@ -169,7 +193,6 @@ where
     /// This function does not make use of unsafe code.
     ///
     pub fn read(&mut self) -> Result<MRTRecord, Error> {
-
         // Parse the MRTHeader
         let mut header = MRTHeader {
             timestamp: self.stream.read_u32::<BigEndian>()?,

@@ -4,9 +4,9 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 
 use crate::MRTHeader;
 
-///
-/// 1. Summary
-///
+/// The BGP enum represents all possible subtypes of the BGP record type.
+#[derive(Debug)]
+#[allow(missing_docs)]
 #[allow(non_camel_case_types)]
 pub enum BGP {
     BGP_NULL,
@@ -21,7 +21,7 @@ pub enum BGP {
 
 /// Used for the deprecated BGP message type.
 impl BGP {
-    pub fn parse(header: MRTHeader, stream: &mut Read) -> Result<BGP, Error> {
+    pub(crate) fn parse(header: MRTHeader, stream: &mut Read) -> Result<BGP, Error> {
         match header.sub_type {
             0 => Ok(BGP::BGP_NULL),
             1 => Ok(BGP::BGP_UPDATE(BGP_MESSAGE::parse(header, stream)?)),
@@ -39,18 +39,28 @@ impl BGP {
     }
 }
 
-// Represents the BGP_UPDATE, BGP_OPEN, BGP_NOTIFY and BGP_KEEPALIVE subtypes.
+/// Represents the BGP_UPDATE, BGP_OPEN, BGP_NOTIFY and BGP_KEEPALIVE subtypes.
+#[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub struct BGP_MESSAGE {
+    /// The peer ASN from which the BGP message has been received.
     pub peer_as: u16,
+
+    /// The peer IPv4 address from which the BGP message has been received.
     pub peer_ip: Ipv4Addr,
+
+    /// The ASN of the AS that received this BGP message.
     pub local_as: u16,
+
+    /// The IPv4 of the AS that received this BGP message.
     pub local_ip: Ipv4Addr,
+
+    /// The message that has been received.
     pub message: Vec<u8>,
 }
 
 impl BGP_MESSAGE {
-    pub fn parse(header: MRTHeader, stream: &mut Read) -> Result<BGP_MESSAGE, Error> {
+    fn parse(header: MRTHeader, stream: &mut Read) -> Result<BGP_MESSAGE, Error> {
         let peer_as = stream.read_u16::<BigEndian>()?;
         let peer_ip = Ipv4Addr::from(stream.read_u32::<BigEndian>()?);
         let local_as = stream.read_u16::<BigEndian>()?;
@@ -70,16 +80,35 @@ impl BGP_MESSAGE {
     }
 }
 
+///
+/// Represents a state change in the BGP Finite State Machine (FSM).
+///
+/// 1 Idle
+/// 2 Connect
+/// 3 Active
+/// 4 OpenSent
+/// 5 OpenConfirm
+/// 6 Established
+/// More information can found in [RFC4271](https://tools.ietf.org/html/rfc4271#section-8).
+///
+#[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub struct BGP_STATE_CHANGE {
+    /// The peer ASN from which the BGP message has been received.
     pub peer_as: u16,
+
+    /// The peer IPv4 address from which the BGP message has been received.
     pub peer_ip: Ipv4Addr,
+
+    /// The old state of the BGP collector.
     pub old_state: u16,
+
+    /// The new state of the BGP collector.
     pub new_state: u16,
 }
 
 impl BGP_STATE_CHANGE {
-    pub fn parse(stream: &mut Read) -> Result<BGP_STATE_CHANGE, Error> {
+    fn parse(stream: &mut Read) -> Result<BGP_STATE_CHANGE, Error> {
         Ok(BGP_STATE_CHANGE {
             peer_as: stream.read_u16::<BigEndian>()?,
             peer_ip: Ipv4Addr::from(stream.read_u32::<BigEndian>()?),
@@ -89,14 +118,19 @@ impl BGP_STATE_CHANGE {
     }
 }
 
+/// Deprecated: Used to record RIB entries in a file.
+#[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub struct BGP_SYNC {
+    /// The associated view number.
     pub view_number: u16,
+
+    /// The NULL-terminated filename of the file where RIB entries are recorded.
     pub filename: Vec<u8>,
 }
 
 impl BGP_SYNC {
-    pub fn parse(stream: &mut Read) -> Result<BGP_SYNC, Error> {
+    fn parse(stream: &mut Read) -> Result<BGP_SYNC, Error> {
         let view_number = stream.read_u16::<BigEndian>()?;
         let mut filename = Vec::new();
 
@@ -113,6 +147,9 @@ impl BGP_SYNC {
     }
 }
 
+/// The BGPPLUS enum represents all possible subtypes of the BGPPLUS record type.
+#[derive(Debug)]
+#[allow(missing_docs)]
 #[allow(non_camel_case_types)]
 pub enum BGP4PLUS {
     BGP4PLUS_NULL,
@@ -130,7 +167,7 @@ pub enum BGP4PLUS {
 
 /// Used for the deprecated BGP message type.
 impl BGP4PLUS {
-    pub fn parse(header: MRTHeader, stream: &mut Read) -> Result<BGP4PLUS, Error> {
+    pub(crate) fn parse(header: MRTHeader, stream: &mut Read) -> Result<BGP4PLUS, Error> {
         match header.sub_type {
             0 => Ok(BGP4PLUS::BGP4PLUS_NULL),
             1 => Ok(BGP4PLUS::BGP4PLUS_UPDATE(BGP4PLUS_MESSAGE::parse(
@@ -158,18 +195,28 @@ impl BGP4PLUS {
     }
 }
 
-// Represents the BGP_UPDATE, BGP_OPEN, BGP_NOTIFY and BGP_KEEPALIVE subtypes.
+/// Represents the BGP_UPDATE, BGP_OPEN, BGP_NOTIFY and BGP_KEEPALIVE subtypes of IPv6 peers.
+#[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub struct BGP4PLUS_MESSAGE {
+    /// The peer ASN from which the BGP message has been received.
     pub peer_as: u16,
+
+    /// The peer IPv6 address from which the BGP message has been received.
     pub peer_ip: Ipv6Addr,
+
+    /// The ASN of the AS that received this BGP message.
     pub local_as: u16,
+
+    /// The IPv6 of the AS that received this BGP message.
     pub local_ip: Ipv6Addr,
+
+    /// The message that has been received.
     pub message: Vec<u8>,
 }
 
 impl BGP4PLUS_MESSAGE {
-    pub fn parse(header: MRTHeader, stream: &mut Read) -> Result<BGP4PLUS_MESSAGE, Error> {
+    fn parse(header: MRTHeader, stream: &mut Read) -> Result<BGP4PLUS_MESSAGE, Error> {
         let peer_as = stream.read_u16::<BigEndian>()?;
         let peer_ip = Ipv6Addr::from(stream.read_u128::<BigEndian>()?);
         let local_as = stream.read_u16::<BigEndian>()?;
@@ -189,16 +236,35 @@ impl BGP4PLUS_MESSAGE {
     }
 }
 
+///
+/// Represents a state change in the BGP Finite State Machine (FSM).
+///
+/// 1 Idle
+/// 2 Connect
+/// 3 Active
+/// 4 OpenSent
+/// 5 OpenConfirm
+/// 6 Established
+/// More information can found in [RFC4271](https://tools.ietf.org/html/rfc4271#section-8).
+///
+#[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub struct BGP4PLUS_STATE_CHANGE {
+    /// The peer ASN from which the BGP message has been received.
     pub peer_as: u16,
+
+    /// The peer IPv6 address from which the BGP message has been received.
     pub peer_ip: Ipv6Addr,
+
+    /// The old state of the BGP collector.
     pub old_state: u16,
+
+    /// The new state of the BGP collector.
     pub new_state: u16,
 }
 
 impl BGP4PLUS_STATE_CHANGE {
-    pub fn parse(stream: &mut Read) -> Result<BGP4PLUS_STATE_CHANGE, Error> {
+    fn parse(stream: &mut Read) -> Result<BGP4PLUS_STATE_CHANGE, Error> {
         Ok(BGP4PLUS_STATE_CHANGE {
             peer_as: stream.read_u16::<BigEndian>()?,
             peer_ip: Ipv6Addr::from(stream.read_u128::<BigEndian>()?),
@@ -208,14 +274,19 @@ impl BGP4PLUS_STATE_CHANGE {
     }
 }
 
+/// Deprecated: Used to record RIB entries in a file.
+#[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub struct BGP4PLUS_SYNC {
+    /// The view number of this Routing Information Base.
     pub view_number: u16,
+
+    /// The filename of the BGP RIB entries. NULL-terminated.
     pub filename: Vec<u8>,
 }
 
 impl BGP4PLUS_SYNC {
-    pub fn parse(stream: &mut Read) -> Result<BGP4PLUS_SYNC, Error> {
+    fn parse(stream: &mut Read) -> Result<BGP4PLUS_SYNC, Error> {
         let view_number = stream.read_u16::<BigEndian>()?;
         let mut filename = Vec::new();
 
