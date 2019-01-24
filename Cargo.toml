@@ -15,12 +15,13 @@ exclude = [
     "README.md",
     "res/*",
     "tests/*",
+    ".travis.yml"
 ]
 
 [badges]
 travis-ci = { repository = "DevQps/mrt-rs", branch = "master" }
 codecov = { repository = "DevQps/mrt-rs", branch = "master", service = "github" }
-maintenance = { status = "passively-maintained" }
+maintenance = { status = "actively-developed" }
 
 [dependencies.byteorder]
 version = "1.2.7"
