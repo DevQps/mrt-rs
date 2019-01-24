@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Christian Veenman <chris_veenman@hotmail.com>"]
 edition = '2018'
 readme = "README.md"
-keywords = ["mrt", "multi-threaded routing toolkit", "parser"]
+keywords = ["mrt", "parser", "bgp"]
 categories = ["parsing", "network-programming"]
 repository = "https://github.com/DevQps/mrt-rs"
 homepage = "https://github.com/DevQps/mrt-rs"
@@ -19,7 +19,7 @@ exclude = [
 
 [badges]
 travis-ci = { repository = "DevQps/mrt-rs", branch = "master" }
-codecov = { repository = "https://github.com/DevQps/mrt-rs", branch = "master", service = "github" }
+codecov = { repository = "DevQps/mrt-rs", branch = "master", service = "github" }
 maintenance = { status = "passively-maintained" }
 
 [dependencies.byteorder]
