@@ -1,5 +1,7 @@
-use mrt_rs::MRTReader;
 use libflate::gzip::Decoder;
+use mrt_rs::MRTReader;
+use mrt_rs::MRTRecord;
+use mrt_rs::BGP4MP;
 use std::fs::File;
 use std::io::Cursor;
 use std::io::Read;
@@ -45,6 +47,11 @@ fn parse(readable: &mut Read) {
     while reader.stream.position() < length {
         let result = reader.read();
         match &result.unwrap() {
+            MRTRecord::BGP4MP(x) => match x {
+                BGP4MP::MESSAGE(y) => println!("{:?}", y),
+                BGP4MP::MESSAGE_AS4(y) => println!("{:?}", y),
+                _ => continue,
+            },
             _ => continue,
         }
     }

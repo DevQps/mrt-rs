@@ -6,6 +6,7 @@ use crate::MRTHeader;
 use crate::AFI;
 
 /// Represents a RIB entry of a Routing Information Base.
+#[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub struct TABLE_DUMP {
     /// Identifies the RIB view. Normally set to 0.
@@ -38,7 +39,6 @@ pub struct TABLE_DUMP {
 
 #[allow(non_camel_case_types)]
 impl TABLE_DUMP {
-
     ///
     /// # Summary
     /// Used to parse TABLE_DUMP MRT records.
@@ -90,8 +90,9 @@ impl TABLE_DUMP {
     }
 }
 
-// ----------------------------------------
-
+/// Used to store Routing Information Base (RIB) entries.
+#[derive(Debug)]
+#[allow(missing_docs)]
 #[allow(non_camel_case_types)]
 pub enum TABLE_DUMP_V2 {
     PEER_INDEX_TABLE(PEER_INDEX_TABLE),
@@ -102,17 +103,22 @@ pub enum TABLE_DUMP_V2 {
     RIB_GENERIC(RIB_AFI),
 }
 
+/// This record provides the BGP ID of the collector, an optional view name,
+/// and a list of indexed peers.
+#[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub struct PEER_INDEX_TABLE {
+    /// The identifier of the collector often set to its IPv4 address.
     pub collector_id: u32,
-    pub view_name_length: u16,
+
+    /// Optional associated view name. Set to the empty string if empty.
     pub view_name: String,
-    pub peer_count: u16,
+
+    /// An array of peers from which messages were received.
     pub peer_entries: Vec<PeerEntry>,
 }
 
 impl PEER_INDEX_TABLE {
-
     fn parse(stream: &mut Read) -> Result<PEER_INDEX_TABLE, Error> {
         let collector_id = stream.read_u32::<BigEndian>()?;
         let view_name_length = stream.read_u16::<BigEndian>()?;
@@ -129,24 +135,29 @@ impl PEER_INDEX_TABLE {
 
         Ok(PEER_INDEX_TABLE {
             collector_id,
-            view_name_length,
             view_name,
-            peer_count,
             peer_entries,
         })
     }
 }
 
+/// Describes a peer from which BGP messages were received.
+#[derive(Debug)]
 pub struct PeerEntry {
-    /// Special flags in bit 7 and 8.
+    /// Special flags in bit 0 and bit 1. Specifying the ASN and IP type.
     pub peer_type: u8,
+
+    /// The BGP identifier of the peer. Often set to its IPv4 address.
     pub peer_bgp_id: u32,
+
+    /// The IP address of the peer.
     pub peer_ip_address: IpAddr,
+
+    /// The ASN of the peer.
     pub peer_as: u32,
 }
 
 impl PeerEntry {
-
     fn parse(stream: &mut Read) -> Result<PeerEntry, Error> {
         let peer_type = stream.read_u8()?;
         let ipv6 = (peer_type & 1) != 0;
@@ -174,15 +185,20 @@ impl PeerEntry {
     }
 }
 
+/// Represents a route in the Routing Information Base (RIB)
+#[derive(Debug)]
 pub struct RIBEntry {
+    /// The index of the peer inside the PEER_INDEX_TABLE.
     pub peer_index: u16,
+
+    /// The moment that this route was received.
     pub originated_time: u32,
-    pub attribute_length: u16,
+
+    /// The BGP Path attributes associated with this route.
     pub attributes: Vec<u8>,
 }
 
 impl RIBEntry {
-
     fn parse(stream: &mut Read) -> Result<RIBEntry, Error> {
         let peer_index = stream.read_u16::<BigEndian>()?;
         let originated_time = stream.read_u32::<BigEndian>()?;
@@ -193,23 +209,32 @@ impl RIBEntry {
         Ok(RIBEntry {
             peer_index,
             originated_time,
-            attribute_length,
             attributes,
         })
     }
 }
 
+/// Represents a collection of routes for a specific IP prefix.
+#[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub struct RIB_AFI {
+    /// A sequence number that identifies the route collection. Wraps back to zero on overflow.
     pub sequence_number: u32,
+
+    /// The prefix length of the prefix.
+    pub prefix_length: u8,
+
+    /// The prefix in bytes rounded up to the nearest byte.
     pub prefix: Vec<u8>,
+
+    /// A collection of routes to this prefix.
     pub entries: Vec<RIBEntry>,
 }
 
 impl RIB_AFI {
     fn parse(stream: &mut Read) -> Result<RIB_AFI, Error> {
         let sequence_number = stream.read_u32::<BigEndian>()?;
-        let prefix_length = (stream.read_u8()? + 7) / 8;
+        let prefix_length: u8 = (stream.read_u8()? + 7) / 8;
         let mut prefix: Vec<u8> = vec![0; prefix_length as usize];
         stream.read_exact(&mut prefix)?;
 
@@ -221,6 +246,7 @@ impl RIB_AFI {
 
         Ok(RIB_AFI {
             sequence_number,
+            prefix_length,
             prefix,
             entries,
         })
@@ -229,7 +255,6 @@ impl RIB_AFI {
 
 #[allow(non_camel_case_types)]
 impl TABLE_DUMP_V2 {
-
     ///
     /// # Summary
     /// Used to parse TABLE_DUMP_V2 MRT records.

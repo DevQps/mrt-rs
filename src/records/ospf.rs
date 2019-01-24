@@ -6,6 +6,7 @@ use crate::MRTHeader;
 use crate::AFI;
 
 /// The OSPFv2 struct represents the data contained in an MRT record type of OSPFv2.
+#[derive(Debug)]
 pub struct OSPFv2 {
     /// The IPv4 address from which this message was received.
     pub remote: Ipv4Addr,
@@ -18,7 +19,6 @@ pub struct OSPFv2 {
 }
 
 impl OSPFv2 {
-
     ///
     /// # Summary
     /// Used to parse OSPFv2 MRT records.
@@ -49,14 +49,19 @@ impl OSPFv2 {
 }
 
 /// The OSPFv3 struct represents the data contained in an MRT record type of OSPFv3 and OSPFv3_ET.
+#[derive(Debug)]
 pub struct OSPFv3 {
+    /// The IP address of the router from which this message was received.
     pub remote: IpAddr,
+
+    /// The IP address of the interface at which this message was received.
     pub local: IpAddr,
+
+    /// The message that has been received.
     pub message: Vec<u8>,
 }
 
 impl OSPFv3 {
-
     ///
     /// # Summary
     /// Used to parse OSPFv3 MRT records.
