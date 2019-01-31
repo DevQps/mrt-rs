@@ -4,7 +4,7 @@
 A library for parsing Multi-Threaded Routing Toolkit (MRT) formatted streams in Rust.
 
 ## Examples & Documentation
-For examples and documentation look [here](https://docs.rs/mrt-rs/0.1.0/mrt_rs/).
+For examples and documentation look [here](https://docs.rs/mrt-rs/).
 
 ## Supported types
 All MRT record types (including deprecated ones) that are mentioned in [RFC6396](https://tools.ietf.org/html/rfc6396) are supported except for RIB_GENERIC (sub-type of TABLE_DUMP_V2) and the BGP4MP_ENTRY (sub-type of BGP4MP). It should be noted however that only BGP4MP and TABLE_DUMP_V2 messages currently contain tests. This is due to the fact that I do not have MRT-formatted streams for other protocols.
