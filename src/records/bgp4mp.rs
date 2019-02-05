@@ -12,28 +12,28 @@ use crate::AFI;
 #[allow(non_camel_case_types)]
 pub enum BGP4MP {
     /// Represents a state change of the BGP collector using 16 bit ASN.
-    STATE_CHANGE(BGP4MP_STATE_CHANGE),
+    STATE_CHANGE(STATE_CHANGE),
 
     /// Represents UPDATE, OPEN, NOTIFICATION and KEEPALIVE messages supporting 16 bit ASN.
-    MESSAGE(BGP4MP_MESSAGE),
+    MESSAGE(MESSAGE),
 
     /// Used to encode BGP RIB entries in older MRT files but is now superseded by TABLE_DUMP_V2.
     ENTRY,
 
     /// Represents a state change of the BGP collector using 32 bit ASN.
-    SNAPSHOT(BGP4MP_SNAPSHOT),
+    SNAPSHOT(SNAPSHOT),
 
     /// Represents UPDATE, OPEN, NOTIFICATION and KEEPALIVE messages supporting 32 bit ASN.
-    MESSAGE_AS4(BGP4MP_MESSAGE_AS4),
+    MESSAGE_AS4(MESSAGE_AS4),
 
     /// Represents a state change of the BGP collector using 32 bit ASN.
-    STATE_CHANGE_AS4(BGP4MP_STATE_CHANGE_AS4),
+    STATE_CHANGE_AS4(STATE_CHANGE_AS4),
 
     /// A locally generated UPDATE, OPEN, NOTIFICATION and KEEPALIVE messages supporting 16 bit ASN.
-    MESSAGE_LOCAL(BGP4MP_MESSAGE),
+    MESSAGE_LOCAL(MESSAGE),
 
     /// A locally generated UPDATE, OPEN, NOTIFICATION and KEEPALIVE messages supporting 32 bit ASN.
-    MESSAGE_AS4_LOCAL(BGP4MP_MESSAGE_AS4),
+    MESSAGE_AS4_LOCAL(MESSAGE_AS4),
 }
 
 ///
@@ -49,7 +49,7 @@ pub enum BGP4MP {
 ///
 #[derive(Debug)]
 #[allow(non_camel_case_types)]
-pub struct BGP4MP_STATE_CHANGE {
+pub struct STATE_CHANGE {
     /// The peer ASN from which the BGP message has been received.
     pub peer_as: u16,
 
@@ -72,8 +72,8 @@ pub struct BGP4MP_STATE_CHANGE {
     pub new_state: u16,
 }
 
-impl BGP4MP_STATE_CHANGE {
-    fn parse(stream: &mut Read) -> Result<BGP4MP_STATE_CHANGE, Error> {
+impl STATE_CHANGE {
+    fn parse(stream: &mut Read) -> Result<STATE_CHANGE, Error> {
         let peer_as = stream.read_u16::<BigEndian>()?;
         let local_as = stream.read_u16::<BigEndian>()?;
         let interface = stream.read_u16::<BigEndian>()?;
@@ -89,7 +89,7 @@ impl BGP4MP_STATE_CHANGE {
         let old_state = stream.read_u16::<BigEndian>()?;
         let new_state = stream.read_u16::<BigEndian>()?;
 
-        Ok(BGP4MP_STATE_CHANGE {
+        Ok(STATE_CHANGE {
             peer_as,
             local_as,
             interface,
@@ -104,7 +104,7 @@ impl BGP4MP_STATE_CHANGE {
 /// Represents a BGP message (UPDATE, OPEN, NOTIFICATION and KEEPALIVE) using 16bit ASN.
 #[derive(Debug)]
 #[allow(non_camel_case_types)]
-pub struct BGP4MP_MESSAGE {
+pub struct MESSAGE {
     /// The peer ASN from which the BGP message has been received.
     pub peer_as: u16,
 
@@ -124,8 +124,8 @@ pub struct BGP4MP_MESSAGE {
     pub message: Vec<u8>,
 }
 
-impl BGP4MP_MESSAGE {
-    fn parse(header: &Header, stream: &mut Read) -> Result<BGP4MP_MESSAGE, Error> {
+impl MESSAGE {
+    fn parse(header: &Header, stream: &mut Read) -> Result<MESSAGE, Error> {
         let peer_as = stream.read_u16::<BigEndian>()?;
         let local_as = stream.read_u16::<BigEndian>()?;
         let interface = stream.read_u16::<BigEndian>()?;
@@ -143,7 +143,7 @@ impl BGP4MP_MESSAGE {
         let mut message = vec![0; length as usize];
         stream.read_exact(&mut message)?;
 
-        Ok(BGP4MP_MESSAGE {
+        Ok(MESSAGE {
             peer_as,
             local_as,
             interface,
@@ -157,7 +157,7 @@ impl BGP4MP_MESSAGE {
 /// Represents a BGP message (UPDATE, OPEN, NOTIFICATION and KEEPALIVE) using 32bit ASN.
 #[derive(Debug)]
 #[allow(non_camel_case_types)]
-pub struct BGP4MP_MESSAGE_AS4 {
+pub struct MESSAGE_AS4 {
     /// The peer ASN from which the BGP message has been received.
     pub peer_as: u32,
 
@@ -177,8 +177,8 @@ pub struct BGP4MP_MESSAGE_AS4 {
     pub message: Vec<u8>,
 }
 
-impl BGP4MP_MESSAGE_AS4 {
-    fn parse(header: &Header, stream: &mut Read) -> Result<BGP4MP_MESSAGE_AS4, Error> {
+impl MESSAGE_AS4 {
+    fn parse(header: &Header, stream: &mut Read) -> Result<MESSAGE_AS4, Error> {
         let peer_as = stream.read_u32::<BigEndian>()?;
         let local_as = stream.read_u32::<BigEndian>()?;
         let interface = stream.read_u16::<BigEndian>()?;
@@ -196,7 +196,7 @@ impl BGP4MP_MESSAGE_AS4 {
         let mut message = vec![0; length as usize];
         stream.read_exact(&mut message)?;
 
-        Ok(BGP4MP_MESSAGE_AS4 {
+        Ok(MESSAGE_AS4 {
             peer_as,
             local_as,
             interface,
@@ -220,7 +220,7 @@ impl BGP4MP_MESSAGE_AS4 {
 ///
 #[derive(Debug)]
 #[allow(non_camel_case_types)]
-pub struct BGP4MP_STATE_CHANGE_AS4 {
+pub struct STATE_CHANGE_AS4 {
     /// The peer ASN from which the BGP message has been received.
     pub peer_as: u32,
 
@@ -243,8 +243,8 @@ pub struct BGP4MP_STATE_CHANGE_AS4 {
     pub new_state: u16,
 }
 
-impl BGP4MP_STATE_CHANGE_AS4 {
-    fn parse(stream: &mut Read) -> Result<BGP4MP_STATE_CHANGE_AS4, Error> {
+impl STATE_CHANGE_AS4 {
+    fn parse(stream: &mut Read) -> Result<STATE_CHANGE_AS4, Error> {
         let peer_as = stream.read_u32::<BigEndian>()?;
         let local_as = stream.read_u32::<BigEndian>()?;
         let interface = stream.read_u16::<BigEndian>()?;
@@ -260,7 +260,7 @@ impl BGP4MP_STATE_CHANGE_AS4 {
         let old_state = stream.read_u16::<BigEndian>()?;
         let new_state = stream.read_u16::<BigEndian>()?;
 
-        Ok(BGP4MP_STATE_CHANGE_AS4 {
+        Ok(STATE_CHANGE_AS4 {
             peer_as,
             local_as,
             interface,
@@ -275,16 +275,16 @@ impl BGP4MP_STATE_CHANGE_AS4 {
 /// Deprecated: Used to record BGP4MP messages in a file.
 #[derive(Debug)]
 #[allow(non_camel_case_types)]
-pub struct BGP4MP_SNAPSHOT {
+pub struct SNAPSHOT {
     /// The associated view number.
     pub view_number: u16,
 
-    /// The NULL-terminated filename of the file where BGP4MP_ENTRY records are recorded.
+    /// The NULL-terminated filename of the file where ENTRY records are recorded.
     pub filename: Vec<u8>,
 }
 
-impl BGP4MP_SNAPSHOT {
-    fn parse(stream: &mut Read) -> Result<BGP4MP_SNAPSHOT, Error> {
+impl SNAPSHOT {
+    fn parse(stream: &mut Read) -> Result<SNAPSHOT, Error> {
         let view_number = stream.read_u16::<BigEndian>()?;
         let mut filename = Vec::new();
 
@@ -294,7 +294,7 @@ impl BGP4MP_SNAPSHOT {
             buffer = stream.read_u8()?;
         }
 
-        Ok(BGP4MP_SNAPSHOT {
+        Ok(SNAPSHOT {
             view_number,
             filename,
         })
@@ -323,20 +323,20 @@ impl BGP4MP {
         );
 
         match header.sub_type {
-            0 => Ok(BGP4MP::STATE_CHANGE(BGP4MP_STATE_CHANGE::parse(stream)?)),
-            1 => Ok(BGP4MP::MESSAGE(BGP4MP_MESSAGE::parse(header, stream)?)),
-            2 => unimplemented!("BGP4MP::BGP4MP_ENTRY sub-type is not yet implemented."),
-            3 => Ok(BGP4MP::SNAPSHOT(BGP4MP_SNAPSHOT::parse(stream)?)),
-            4 => Ok(BGP4MP::MESSAGE_AS4(BGP4MP_MESSAGE_AS4::parse(
+            0 => Ok(BGP4MP::STATE_CHANGE(STATE_CHANGE::parse(stream)?)),
+            1 => Ok(BGP4MP::MESSAGE(MESSAGE::parse(header, stream)?)),
+            2 => unimplemented!("BGP4MP::ENTRY sub-type is not yet implemented."),
+            3 => Ok(BGP4MP::SNAPSHOT(SNAPSHOT::parse(stream)?)),
+            4 => Ok(BGP4MP::MESSAGE_AS4(MESSAGE_AS4::parse(
                 header, stream,
             )?)),
-            5 => Ok(BGP4MP::STATE_CHANGE_AS4(BGP4MP_STATE_CHANGE_AS4::parse(
+            5 => Ok(BGP4MP::STATE_CHANGE_AS4(STATE_CHANGE_AS4::parse(
                 stream,
             )?)),
-            6 => Ok(BGP4MP::MESSAGE_LOCAL(BGP4MP_MESSAGE::parse(
+            6 => Ok(BGP4MP::MESSAGE_LOCAL(MESSAGE::parse(
                 header, stream,
             )?)),
-            7 => Ok(BGP4MP::MESSAGE_AS4_LOCAL(BGP4MP_MESSAGE_AS4::parse(
+            7 => Ok(BGP4MP::MESSAGE_AS4_LOCAL(MESSAGE_AS4::parse(
                 header, stream,
             )?)),
             _ => Err(Error::new(
