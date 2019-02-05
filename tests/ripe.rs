@@ -1,5 +1,4 @@
 use libflate::gzip::Decoder;
-use mrt_rs::MRTReader;
 use std::fs::File;
 use std::io::BufReader;
 
@@ -13,7 +12,7 @@ fn parse_updates() {
     let decoder = Decoder::new(BufReader::new(file)).unwrap();
 
     // Create a new MRTReader with a Cursor such that we can keep track of the position.
-    let mut reader = MRTReader { stream: decoder };
+    let mut reader =  mrt_rs::Reader { stream: decoder };
 
     while let Ok(Some(record)) = reader.read() {
         match record {
@@ -31,10 +30,10 @@ fn parse_rib() {
     // Decode the GZIP stream.
     let decoder = Decoder::new(BufReader::new(file)).unwrap();
 
-    // Create a new MRTReader
-    let mut reader = MRTReader { stream: decoder };
+    // Create a new MRTReader.
+    let mut reader = mrt_rs::Reader { stream: decoder };
 
-    while let Ok(Some(record)) = reader.read() {
+    while let Ok(Some((header, record))) = reader.read() {
         match record {
             _ => continue,
         }

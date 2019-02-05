@@ -2,7 +2,7 @@ use byteorder::{BigEndian, ReadBytesExt};
 use std::io::{Error, Read};
 use std::net::{Ipv4Addr, Ipv6Addr};
 
-use crate::MRTHeader;
+use crate::Header;
 use crate::AFI;
 
 /// The RIP struct represents the data contained in an MRT record type of RIP.
@@ -33,7 +33,7 @@ impl RIP {
     /// # Safety
     /// This function does not make use of unsafe code.
     ///
-    pub fn parse(header: MRTHeader, stream: &mut Read) -> Result<RIP, Error> {
+    pub fn parse(header: &Header, stream: &mut Read) -> Result<RIP, Error> {
         // The fixed size of the header consisting of two IPv4 addresses.
         let length = (header.length - 2 * AFI::IPV4.size()) as usize;
         let mut record = RIP {
@@ -76,7 +76,7 @@ impl RIPNG {
     /// # Safety
     /// This function does not make use of unsafe code.
     ///
-    pub fn parse(header: MRTHeader, stream: &mut Read) -> Result<RIPNG, Error> {
+    pub fn parse(header: &Header, stream: &mut Read) -> Result<RIPNG, Error> {
         // The fixed size of the header consisting of two IPv4 addresses.
         let length = (header.length - 2 * AFI::IPV6.size()) as usize;
         let mut record = RIPNG {

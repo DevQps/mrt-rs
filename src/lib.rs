@@ -10,9 +10,8 @@
 //! use std::io::Cursor;
 //! use std::io::Read;
 //! use std::io::BufReader;
-//! use mrt_rs::MRTReader;
-//! use mrt_rs::MRTRecord;
-//! use mrt_rs::BGP4MP;
+//! use mrt_rs::{Reader, Record};
+//! use mrt_rs::bgp4mp::BGP4MP;
 //! use libflate::gzip::Decoder;
 //!
 //! fn main() {
@@ -22,13 +21,13 @@
 //!     // Decode the GZIP stream using BufReader for better performance.
 //!     let mut decoder = Decoder::new(BufReader::new(file)).unwrap();
 //!
-//!     // Create a new MRTReader with a Cursor such that we can keep track of the position.
-//!    let mut reader = MRTReader { stream: decoder };
+//!     // Create a new Reader with a Cursor such that we can keep track of the position.
+//!    let mut reader = Reader { stream: decoder };
 //!
 //!     // Keep reading entries till the end of the file has been reached.
-//!     while let Ok(Some(record)) = reader.read() {
+//!     while let Ok(Some((header, record))) = reader.read() {
 //!         match record {
-//!             MRTRecord::BGP4MP(x) => match x {
+//!             Record::BGP4MP(x) => match x {
 //!                 BGP4MP::MESSAGE(y) => println!("{:?}", y),
 //!                 BGP4MP::MESSAGE_AS4(y) => println!("{:?}", y),
 //!                 _ => continue,
@@ -40,33 +39,41 @@
 //! ```
 
 use byteorder::{BigEndian, ReadBytesExt};
-use std::fmt;
 use std::io::{Error, ErrorKind, Read};
 
-// Structure the internal module hierarchy
-mod records {
+/// Contains the implementation of all MRT record types.
+pub mod records {
+
+    /// Contains all BGP subtypes.
     pub mod bgp;
+
+    /// Contains all BGP4PLUS subtypes.
+    pub mod bgp4plus;
+
+    /// Contains all BGP4MP subtypes.
     pub mod bgp4mp;
+
+    /// Contains all ISIS subtypes.
     pub mod isis;
+
+    /// Contains all OSPF subtypes such as OSPFv2 and OSPFv3.
     pub mod ospf;
+
+    /// Contains all RIP subtypes.
     pub mod rip;
+
+    /// Contains all TABLE_DUMP subtypes such as TABLE_DUMP and TABLE_DUMP_V2.
     pub mod tabledump;
 }
 
-// Re-export symbols such that they are easily accessible.
-pub use records::bgp::{
-    BGP, BGP4PLUS, BGP4PLUS_MESSAGE, BGP4PLUS_STATE_CHANGE, BGP4PLUS_SYNC, BGP_MESSAGE,
-    BGP_STATE_CHANGE, BGP_SYNC,
-};
-pub use records::bgp4mp::{
-    BGP4MP, BGP4MP_MESSAGE, BGP4MP_MESSAGE_AS4, BGP4MP_SNAPSHOT, BGP4MP_STATE_CHANGE,
-    BGP4MP_STATE_CHANGE_AS4,
-};
-pub use records::ospf::{OSPFv2, OSPFv3};
-pub use records::rip::{RIP, RIPNG};
-pub use records::tabledump::{
-    PeerEntry, RIBEntry, PEER_INDEX_TABLE, RIB_AFI, TABLE_DUMP, TABLE_DUMP_V2,
-};
+// Re-exports to allow users more convenient access.
+pub use records::bgp4mp as bgp4mp;
+pub use records::bgp as bgp;
+pub use records::bgp4plus as bgp4plus;
+pub use records::isis as isis;
+pub use records::ospf as ospf;
+pub use records::rip as rip;
+pub use records::tabledump as tabledump;
 
 /// Represents an Address Family Idenfitier. Currently only IPv4 and IPv6 are supported.
 #[derive(Debug)]
@@ -101,8 +108,8 @@ impl AFI {
     }
 }
 
-/// The MRTReader can read MRT records from an MRT-formatted stream.
-pub struct MRTReader<T>
+/// The Reader can read MRT records from an MRT-formatted stream.
+pub struct Reader<T>
 where
     T: Read,
 {
@@ -112,7 +119,7 @@ where
 
 /// Represents the MRT header accompanying every MRT record.
 #[derive(Debug)]
-pub struct MRTHeader {
+pub struct Header {
     /// The time at which this message was generated. Represented in UNIX time.
     pub timestamp: u32,
 
@@ -129,21 +136,11 @@ pub struct MRTHeader {
     pub length: u32,
 }
 
-impl fmt::Display for MRTHeader {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            formatter,
-            "(Timestamp: {}, Type: {}, Subtype: {}, Length: {})",
-            self.timestamp, self.record_type, self.sub_type, self.length
-        )
-    }
-}
-
 /// Represents a single MRT record.
 #[derive(Debug)]
 #[allow(missing_docs)]
 #[allow(non_camel_case_types)]
-pub enum MRTRecord {
+pub enum Record {
     NULL,
     START,
     DIE,
@@ -153,8 +150,8 @@ pub enum MRTRecord {
     RIP(records::rip::RIP),
     IDRP,
     RIPNG(records::rip::RIPNG),
-    BGP4PLUS(records::bgp::BGP4PLUS),
-    BGP4PLUS_01(records::bgp::BGP4PLUS),
+    BGP4PLUS(records::bgp4plus::BGP4PLUS),
+    BGP4PLUS_01(records::bgp4plus::BGP4PLUS),
     OSPFv2(records::ospf::OSPFv2),
     TABLE_DUMP(records::tabledump::TABLE_DUMP),
     TABLE_DUMP_V2(records::tabledump::TABLE_DUMP_V2),
@@ -166,7 +163,7 @@ pub enum MRTRecord {
     OSPFv3_ET(records::ospf::OSPFv3),
 }
 
-impl<T> MRTReader<T>
+impl<T> Reader<T>
 where
     T: Read,
 {
@@ -183,7 +180,7 @@ where
     /// # Safety
     /// This function does not make use of unsafe code.
     ///
-    pub fn read(&mut self) -> Result<Option<MRTRecord>, Error> {
+    pub fn read(&mut self) -> Result<Option<(Header, Record)>, Error> {
         let result = self.stream.read_u32::<BigEndian>();
 
         // Check if an EOF has occurred at the beginning of the stream and return None
@@ -195,7 +192,7 @@ where
         };
 
         // Parse the MRTHeader
-        let mut header = MRTHeader {
+        let mut header = Header {
             timestamp,
             extended: 0,
             record_type: self.stream.read_u16::<BigEndian>()?,
@@ -204,74 +201,74 @@ where
         };
 
         match header.record_type {
-            0 => Ok(Some(MRTRecord::NULL)),
-            1 => Ok(Some(MRTRecord::START)),
-            2 => Ok(Some(MRTRecord::DIE)),
-            3 => Ok(Some(MRTRecord::I_AM_DEAD)),
-            4 => Ok(Some(MRTRecord::PEER_DOWN)),
+            0 => Ok(Some((header, Record::NULL))),
+            1 => Ok(Some((header, Record::START))),
+            2 => Ok(Some((header, Record::DIE))),
+            3 => Ok(Some((header, Record::I_AM_DEAD))),
+            4 => Ok(Some((header, Record::PEER_DOWN))),
             5 => {
-                let record = records::bgp::BGP::parse(header, &mut self.stream)?;
-                Ok(Some(MRTRecord::BGP(record)))
+                let record = records::bgp::BGP::parse(&header, &mut self.stream)?;
+                Ok(Some((header, Record::BGP(record))))
             }
             6 => {
-                let record = records::rip::RIP::parse(header, &mut self.stream)?;
-                Ok(Some(MRTRecord::RIP(record)))
+                let record = records::rip::RIP::parse(&header, &mut self.stream)?;
+                Ok(Some((header, Record::RIP(record))))
             }
-            7 => Ok(Some(MRTRecord::IDRP)),
+            7 => Ok(Some((header, Record::IDRP))),
             8 => {
-                let record = records::rip::RIPNG::parse(header, &mut self.stream)?;
-                Ok(Some(MRTRecord::RIPNG(record)))
+                let record = records::rip::RIPNG::parse(&header, &mut self.stream)?;
+                Ok(Some((header, Record::RIPNG(record))))
             }
             9 => {
-                let record = records::bgp::BGP4PLUS::parse(header, &mut self.stream)?;
-                Ok(Some(MRTRecord::BGP4PLUS(record)))
+                let record = records::bgp4plus::BGP4PLUS::parse(&header, &mut self.stream)?;
+                Ok(Some((header, Record::BGP4PLUS(record))))
             }
             10 => {
-                let record = records::bgp::BGP4PLUS::parse(header, &mut self.stream)?;
-                Ok(Some(MRTRecord::BGP4PLUS_01(record)))
+                let record = records::bgp4plus::BGP4PLUS::parse(&header, &mut self.stream)?;
+                Ok(Some((header, Record::BGP4PLUS_01(record))))
             }
             11 => {
-                let record = records::ospf::OSPFv2::parse(header, &mut self.stream)?;
-                Ok(Some(MRTRecord::OSPFv2(record)))
+                let record = records::ospf::OSPFv2::parse(&header, &mut self.stream)?;
+                Ok(Some((header, Record::OSPFv2(record))))
             }
             12 => {
-                let record = records::tabledump::TABLE_DUMP::parse(header, &mut self.stream)?;
-                Ok(Some(MRTRecord::TABLE_DUMP(record)))
+                let record = records::tabledump::TABLE_DUMP::parse(&header, &mut self.stream)?;
+                Ok(Some((header, Record::TABLE_DUMP(record))))
             }
             13 => {
-                let record = records::tabledump::TABLE_DUMP_V2::parse(header, &mut self.stream)?;
-                Ok(Some(MRTRecord::TABLE_DUMP_V2(record)))
+                let record = records::tabledump::TABLE_DUMP_V2::parse(&header, &mut self.stream)?;
+                Ok(Some((header, Record::TABLE_DUMP_V2(record))))
             }
             16 => {
-                let record = records::bgp4mp::BGP4MP::parse(header, &mut self.stream)?;
-                Ok(Some(MRTRecord::BGP4MP(record)))
+                let record = records::bgp4mp::BGP4MP::parse(&header, &mut self.stream)?;
+                Ok(Some((header, Record::BGP4MP(record))))
             }
             17 => {
                 header.extended = self.stream.read_u32::<BigEndian>()?;
-                let record = records::bgp4mp::BGP4MP::parse(header, &mut self.stream)?;
-                Ok(Some(MRTRecord::BGP4MP_ET(record)))
+                let record = records::bgp4mp::BGP4MP::parse(&header, &mut self.stream)?;
+                Ok(Some((header, Record::BGP4MP_ET(record))))
             }
             32 => {
-                let record = records::isis::parse(header, &mut self.stream)?;
-                Ok(Some(MRTRecord::ISIS(record)))
+                let record = records::isis::parse(&header, &mut self.stream)?;
+                Ok(Some((header, Record::ISIS(record))))
             }
             33 => {
                 header.extended = self.stream.read_u32::<BigEndian>()?;
-                let record = records::isis::parse(header, &mut self.stream)?;
-                Ok(Some(MRTRecord::ISIS_ET(record)))
+                let record = records::isis::parse(&header, &mut self.stream)?;
+                Ok(Some((header, Record::ISIS_ET(record))))
             }
             48 => {
-                let record = records::ospf::OSPFv3::parse(header, &mut self.stream)?;
-                Ok(Some(MRTRecord::OSPFv3(record)))
+                let record = records::ospf::OSPFv3::parse(&header, &mut self.stream)?;
+                Ok(Some((header, Record::OSPFv3(record))))
             }
             49 => {
                 header.extended = self.stream.read_u32::<BigEndian>()?;
-                let record = records::ospf::OSPFv3::parse(header, &mut self.stream)?;
-                Ok(Some(MRTRecord::OSPFv3_ET(record)))
+                let record = records::ospf::OSPFv3::parse(&header, &mut self.stream)?;
+                Ok(Some((header, Record::OSPFv3_ET(record))))
             }
             _ => Err(Error::new(
                 ErrorKind::Other,
-                "Unknown MRT record type found in MRTHeader",
+                "Unknown record type found in MRT header",
             )),
         }
     }
