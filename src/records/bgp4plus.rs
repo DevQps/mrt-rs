@@ -92,13 +92,6 @@ impl MESSAGE {
 
 ///
 /// Represents a state change in the BGP Finite State Machine (FSM).
-///
-/// 1 Idle
-/// 2 Connect
-/// 3 Active
-/// 4 OpenSent
-/// 5 OpenConfirm
-/// 6 Established
 /// More information can found in [RFC4271](https://tools.ietf.org/html/rfc4271#section-8).
 ///
 #[derive(Debug)]

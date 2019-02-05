@@ -22,7 +22,7 @@
 //!     let mut decoder = Decoder::new(BufReader::new(file)).unwrap();
 //!
 //!     // Create a new Reader with a Cursor such that we can keep track of the position.
-//!    let mut reader = Reader { stream: decoder };
+//!     let mut reader = Reader { stream: decoder };
 //!
 //!     // Keep reading entries till the end of the file has been reached.
 //!     while let Ok(Some((header, record))) = reader.read() {
