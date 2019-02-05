@@ -1,6 +1,6 @@
 use std::io::{Error, Read};
 
-use crate::MRTHeader;
+use crate::Header;
 
 ///
 /// # Summary
@@ -16,7 +16,7 @@ use crate::MRTHeader;
 /// # Safety
 /// This function does not make use of unsafe code.
 ///
-pub fn parse(header: MRTHeader, stream: &mut Read) -> Result<Vec<u8>, Error> {
+pub fn parse(header: &Header, stream: &mut Read) -> Result<Vec<u8>, Error> {
     // The fixed size of the header consisting of two IPv4 addresses.
     let mut message = vec![0; header.length as usize];
     stream.read_exact(&mut message)?;

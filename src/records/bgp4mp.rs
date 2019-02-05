@@ -2,7 +2,7 @@ use byteorder::{BigEndian, ReadBytesExt};
 use std::io::{Error, ErrorKind, Read};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
-use crate::MRTHeader;
+use crate::Header;
 use crate::AFI;
 
 ///
@@ -125,7 +125,7 @@ pub struct BGP4MP_MESSAGE {
 }
 
 impl BGP4MP_MESSAGE {
-    fn parse(header: MRTHeader, stream: &mut Read) -> Result<BGP4MP_MESSAGE, Error> {
+    fn parse(header: &Header, stream: &mut Read) -> Result<BGP4MP_MESSAGE, Error> {
         let peer_as = stream.read_u16::<BigEndian>()?;
         let local_as = stream.read_u16::<BigEndian>()?;
         let interface = stream.read_u16::<BigEndian>()?;
@@ -178,7 +178,7 @@ pub struct BGP4MP_MESSAGE_AS4 {
 }
 
 impl BGP4MP_MESSAGE_AS4 {
-    fn parse(header: MRTHeader, stream: &mut Read) -> Result<BGP4MP_MESSAGE_AS4, Error> {
+    fn parse(header: &Header, stream: &mut Read) -> Result<BGP4MP_MESSAGE_AS4, Error> {
         let peer_as = stream.read_u32::<BigEndian>()?;
         let local_as = stream.read_u32::<BigEndian>()?;
         let interface = stream.read_u16::<BigEndian>()?;
@@ -316,7 +316,7 @@ impl BGP4MP {
     /// # Safety
     /// This function does not make use of unsafe code.
     ///
-    pub(crate) fn parse(header: MRTHeader, stream: &mut Read) -> Result<BGP4MP, Error> {
+    pub(crate) fn parse(header: &Header, stream: &mut Read) -> Result<BGP4MP, Error> {
         debug_assert!(
             header.record_type == 16 || header.record_type == 17,
             "Invalid record type in MRTHeader, expected BGP4MP record type."

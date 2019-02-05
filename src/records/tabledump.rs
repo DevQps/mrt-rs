@@ -2,7 +2,7 @@ use byteorder::{BigEndian, ReadBytesExt};
 use std::io::{Error, Read};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
-use crate::MRTHeader;
+use crate::Header;
 use crate::AFI;
 
 /// Represents a RIB entry of a Routing Information Base.
@@ -53,7 +53,7 @@ impl TABLE_DUMP {
     /// # Safety
     /// This function does not make use of unsafe code.
     ///
-    pub fn parse(header: MRTHeader, stream: &mut Read) -> Result<TABLE_DUMP, Error> {
+    pub fn parse(header: &Header, stream: &mut Read) -> Result<TABLE_DUMP, Error> {
         let view_number = stream.read_u16::<BigEndian>()?;
         let sequence_number = stream.read_u16::<BigEndian>()?;
 
@@ -269,7 +269,7 @@ impl TABLE_DUMP_V2 {
     /// # Safety
     /// This function does not make use of unsafe code.
     ///
-    pub fn parse(header: MRTHeader, stream: &mut Read) -> Result<TABLE_DUMP_V2, Error> {
+    pub fn parse(header: &Header, stream: &mut Read) -> Result<TABLE_DUMP_V2, Error> {
         match header.sub_type {
             1 => Ok(TABLE_DUMP_V2::PEER_INDEX_TABLE(PEER_INDEX_TABLE::parse(
                 stream,
