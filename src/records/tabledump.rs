@@ -101,6 +101,11 @@ pub enum TABLE_DUMP_V2 {
     RIB_IPV6_UNICAST(RIB_AFI),
     RIB_IPV6_MULTICAST(RIB_AFI),
     RIB_GENERIC(RIB_AFI),
+    RIB_IPV4_UNICAST_ADDPATH(RIB_AFI_ADDPATH),
+    RIB_IPV4_MULTICAST_ADDPATH(RIB_AFI_ADDPATH),
+    RIB_IPV6_UNICAST_ADDPATH(RIB_AFI_ADDPATH),
+    RIB_IPV6_MULTICAST_ADDPATH(RIB_AFI_ADDPATH),
+    RIB_GENERIC_ADDPATH(RIB_AFI_ADDPATH),
 }
 
 /// This record provides the BGP ID of the collector, an optional view name,
@@ -253,6 +258,79 @@ impl RIB_AFI {
     }
 }
 
+/// Represents a route in the Routing Information Base (RIB) allowing multiple paths.
+#[derive(Debug)]
+pub struct RIBEntryAddPath {
+    /// The index of the peer inside the PEER_INDEX_TABLE.
+    pub peer_index: u16,
+
+    /// The moment that this route was received.
+    pub originated_time: u32,
+
+    /// Identifies the path together with the address prefix.
+    pub path_identifier: u32,
+
+    /// The BGP Path attributes associated with this route.
+    pub attributes: Vec<u8>,
+}
+
+impl RIBEntryAddPath {
+    fn parse(stream: &mut Read) -> Result<RIBEntryAddPath, Error> {
+        let peer_index = stream.read_u16::<BigEndian>()?;
+        let originated_time = stream.read_u32::<BigEndian>()?;
+        let path_identifier = stream.read_u32::<BigEndian>()?;
+        let attribute_length = stream.read_u16::<BigEndian>()?;
+        let mut attributes: Vec<u8> = vec![0; attribute_length as usize];
+        stream.read_exact(&mut attributes)?;
+
+        Ok(RIBEntryAddPath {
+            peer_index,
+            originated_time,
+            path_identifier,
+            attributes,
+        })
+    }
+}
+
+/// Represents a collection of routes for a specific IP prefix.
+#[derive(Debug)]
+#[allow(non_camel_case_types)]
+pub struct RIB_AFI_ADDPATH {
+    /// A sequence number that identifies the route collection. Wraps back to zero on overflow.
+    pub sequence_number: u32,
+
+    /// The prefix length of the prefix.
+    pub prefix_length: u8,
+
+    /// The prefix in bytes rounded up to the nearest byte.
+    pub prefix: Vec<u8>,
+
+    /// A collection of routes to this prefix. Might contain multiple paths from a single peer.
+    pub entries: Vec<RIBEntryAddPath>,
+}
+
+impl RIB_AFI_ADDPATH {
+    fn parse(stream: &mut Read) -> Result<RIB_AFI_ADDPATH, Error> {
+        let sequence_number = stream.read_u32::<BigEndian>()?;
+        let prefix_length: u8 = (stream.read_u8()? + 7) / 8;
+        let mut prefix: Vec<u8> = vec![0; prefix_length as usize];
+        stream.read_exact(&mut prefix)?;
+
+        let entry_count = stream.read_u16::<BigEndian>()?;
+        let mut entries: Vec<RIBEntryAddPath> = Vec::with_capacity(entry_count as usize);
+        for _ in 0..entry_count {
+            entries.push(RIBEntryAddPath::parse(stream)?);
+        }
+
+        Ok(RIB_AFI_ADDPATH {
+            sequence_number,
+            prefix_length,
+            prefix,
+            entries,
+        })
+    }
+}
+
 #[allow(non_camel_case_types)]
 impl TABLE_DUMP_V2 {
     ///
@@ -278,7 +356,12 @@ impl TABLE_DUMP_V2 {
             3 => Ok(TABLE_DUMP_V2::RIB_IPV4_MULTICAST(RIB_AFI::parse(stream)?)),
             4 => Ok(TABLE_DUMP_V2::RIB_IPV6_UNICAST(RIB_AFI::parse(stream)?)),
             5 => Ok(TABLE_DUMP_V2::RIB_IPV6_MULTICAST(RIB_AFI::parse(stream)?)),
-            6 => unimplemented!("TABLE_DUMP_V2::RIB_GENERIC sub-type is not yet implemented."),
+            6 => unimplemented!("TABLE_DUMP_V2::RIB_GENERIC sub-type does not yet have known AFI/SAFI implementations."),
+            8 => Ok(TABLE_DUMP_V2::RIB_IPV4_UNICAST_ADDPATH (RIB_AFI_ADDPATH::parse(stream)?)),
+            9 => Ok(TABLE_DUMP_V2::RIB_IPV4_MULTICAST_ADDPATH (RIB_AFI_ADDPATH::parse(stream)?)),
+            10 => Ok(TABLE_DUMP_V2::RIB_IPV6_UNICAST_ADDPATH (RIB_AFI_ADDPATH::parse(stream)?)),
+            11 => Ok(TABLE_DUMP_V2::RIB_IPV6_MULTICAST_ADDPATH (RIB_AFI_ADDPATH::parse(stream)?)),
+            12 => unimplemented!("TABLE_DUMP_V2::RIB_GENERIC_ADDPATH sub-type does not yet have known AFI/SAFI implementations."),
             _ => {
                 let msg = format!(
                     "{} is not a valid sub-type of Tabledump v2",

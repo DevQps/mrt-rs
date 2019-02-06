@@ -12,9 +12,10 @@ fn parse_updates() {
     let decoder = Decoder::new(BufReader::new(file)).unwrap();
 
     // Create a new MRTReader with a Cursor such that we can keep track of the position.
-    let mut reader =  mrt_rs::Reader { stream: decoder };
+    let mut reader = mrt_rs::Reader { stream: decoder };
 
-    while let Ok(Some(record)) = reader.read() {
+    // Read a (Header, Record) tuple.
+    while let Ok(Some((_, record))) = reader.read() {
         match record {
             _ => continue,
         }
@@ -33,7 +34,8 @@ fn parse_rib() {
     // Create a new MRTReader.
     let mut reader = mrt_rs::Reader { stream: decoder };
 
-    while let Ok(Some((header, record))) = reader.read() {
+    // Read a (Header, Record) tuple.
+    while let Ok(Some((_, record))) = reader.read() {
         match record {
             _ => continue,
         }

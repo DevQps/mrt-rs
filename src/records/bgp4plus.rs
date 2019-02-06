@@ -24,23 +24,13 @@ impl BGP4PLUS {
     pub(crate) fn parse(header: &Header, stream: &mut Read) -> Result<BGP4PLUS, Error> {
         match header.sub_type {
             0 => Ok(BGP4PLUS::NULL),
-            1 => Ok(BGP4PLUS::UPDATE(MESSAGE::parse(
-                header, stream,
-            )?)),
+            1 => Ok(BGP4PLUS::UPDATE(MESSAGE::parse(header, stream)?)),
             2 => Ok(BGP4PLUS::PREF_UPDATE),
-            3 => Ok(BGP4PLUS::STATE_CHANGE(
-                STATE_CHANGE::parse(stream)?,
-            )),
+            3 => Ok(BGP4PLUS::STATE_CHANGE(STATE_CHANGE::parse(stream)?)),
             4 => Ok(BGP4PLUS::SYNC(SYNC::parse(stream)?)),
-            5 => Ok(BGP4PLUS::OPEN(MESSAGE::parse(
-                header, stream,
-            )?)),
-            6 => Ok(BGP4PLUS::NOTIFY(MESSAGE::parse(
-                header, stream,
-            )?)),
-            7 => Ok(BGP4PLUS::KEEPALIVE(MESSAGE::parse(
-                header, stream,
-            )?)),
+            5 => Ok(BGP4PLUS::OPEN(MESSAGE::parse(header, stream)?)),
+            6 => Ok(BGP4PLUS::NOTIFY(MESSAGE::parse(header, stream)?)),
+            7 => Ok(BGP4PLUS::KEEPALIVE(MESSAGE::parse(header, stream)?)),
             _ => Err(Error::new(
                 ErrorKind::Other,
                 "Unknown MRT record subtype found in MRTHeader",

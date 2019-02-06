@@ -24,7 +24,7 @@
 //!     // Create a new Reader with a Cursor such that we can keep track of the position.
 //!     let mut reader = Reader { stream: decoder };
 //!
-//!     // Keep reading entries till the end of the file has been reached.
+//!     // Keep reading (Header, Record) tuples till the end of the file has been reached.
 //!     while let Ok(Some((header, record))) = reader.read() {
 //!         match record {
 //!             Record::BGP4MP(x) => match x {
@@ -67,13 +67,13 @@ pub mod records {
 }
 
 // Re-exports to allow users more convenient access.
-pub use records::bgp4mp as bgp4mp;
-pub use records::bgp as bgp;
-pub use records::bgp4plus as bgp4plus;
-pub use records::isis as isis;
-pub use records::ospf as ospf;
-pub use records::rip as rip;
-pub use records::tabledump as tabledump;
+pub use records::bgp;
+pub use records::bgp4mp;
+pub use records::bgp4plus;
+pub use records::isis;
+pub use records::ospf;
+pub use records::rip;
+pub use records::tabledump;
 
 /// Represents an Address Family Idenfitier. Currently only IPv4 and IPv6 are supported.
 #[derive(Debug)]
