@@ -24,7 +24,7 @@
 //!     // Create a new Reader with a Cursor such that we can keep track of the position.
 //!     let mut reader = Reader { stream: decoder };
 //!
-//!     // Keep reading entries till the end of the file has been reached.
+//!     // Keep reading (Header, Record) tuples till the end of the file has been reached.
 //!     while let Ok(Some((header, record))) = reader.read() {
 //!         match record {
 //!             Record::BGP4MP(x) => match x {
