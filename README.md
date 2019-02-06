@@ -25,8 +25,8 @@ All MRT record types (including deprecated ones) that are mentioned in [RFC6396]
 - BGP4PLUS_01
 - OSPFv2
 - TABLE_DUMP
-- **[Tested]** TABLE_DUMP_V2     
-- **[Tested]** BGP4MP            
+- **[Tested]** TABLE_DUMP_V2 (including RFC8050 changes)
+- **[Tested]** BGP4MP (including RFC8050 changes)
 - **[Tested]** BGP4MP_ET         
 - ISIS
 - ISIS_ET
