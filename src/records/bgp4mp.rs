@@ -396,7 +396,8 @@ impl ENTRY {
         };
 
         // Read the prefix.
-        let prefix_length: u8 = (stream.read_u8()? + 7) / 8;
+        let prefix_length: u8 = stream.read_u8()?;
+        let length: u8 = (prefix_length + 7) / 8;
         let mut prefix: Vec<u8> = vec![0; prefix_length as usize];
         stream.read_exact(&mut prefix)?;
 

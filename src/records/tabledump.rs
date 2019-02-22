@@ -239,7 +239,9 @@ pub struct RIB_AFI {
 impl RIB_AFI {
     fn parse(stream: &mut Read) -> Result<RIB_AFI, Error> {
         let sequence_number = stream.read_u32::<BigEndian>()?;
-        let prefix_length: u8 = (stream.read_u8()? + 7) / 8;
+
+        let prefix_length: u8 = stream.read_u8()?;
+        let length: u8 = (prefix_length + 7) / 8;
         let mut prefix: Vec<u8> = vec![0; prefix_length as usize];
         stream.read_exact(&mut prefix)?;
 
@@ -312,7 +314,8 @@ pub struct RIB_AFI_ADDPATH {
 impl RIB_AFI_ADDPATH {
     fn parse(stream: &mut Read) -> Result<RIB_AFI_ADDPATH, Error> {
         let sequence_number = stream.read_u32::<BigEndian>()?;
-        let prefix_length: u8 = (stream.read_u8()? + 7) / 8;
+        let prefix_length: u8 = stream.read_u8()?;
+        let length: u8 = (prefix_length + 7) / 8;
         let mut prefix: Vec<u8> = vec![0; prefix_length as usize];
         stream.read_exact(&mut prefix)?;
 
