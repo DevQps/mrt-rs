@@ -1,6 +1,6 @@
 [package]
 name = "mrt-rs"
-version = "1.1.1"
+version = "1.1.2"
 authors = ["Christian Veenman <chris_veenman@hotmail.com>"]
 edition = '2018'
 readme = "README.md"

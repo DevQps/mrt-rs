@@ -242,7 +242,7 @@ impl RIB_AFI {
 
         let prefix_length: u8 = stream.read_u8()?;
         let length: u8 = (prefix_length + 7) / 8;
-        let mut prefix: Vec<u8> = vec![0; prefix_length as usize];
+        let mut prefix: Vec<u8> = vec![0; length as usize];
         stream.read_exact(&mut prefix)?;
 
         let entry_count = stream.read_u16::<BigEndian>()?;
@@ -316,7 +316,7 @@ impl RIB_AFI_ADDPATH {
         let sequence_number = stream.read_u32::<BigEndian>()?;
         let prefix_length: u8 = stream.read_u8()?;
         let length: u8 = (prefix_length + 7) / 8;
-        let mut prefix: Vec<u8> = vec![0; prefix_length as usize];
+        let mut prefix: Vec<u8> = vec![0; length as usize];
         stream.read_exact(&mut prefix)?;
 
         let entry_count = stream.read_u16::<BigEndian>()?;
