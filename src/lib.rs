@@ -18,7 +18,7 @@
 //!     let mut reader = Reader { stream: file };
 //!
 //!     // Keep reading (Header, Record) tuples till the end of the file has been reached.
-//!     while let Ok(Some((header, record))) = reader.read() {
+//!     while let Some((header, record)) = reader.read().unwrap() {
 //!         match record {
 //!             Record::BGP4MP(x) => match x {
 //!                 BGP4MP::MESSAGE(y) => println!("{:?}", y),
