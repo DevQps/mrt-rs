@@ -1,7 +1,5 @@
-use libflate::gzip::Decoder;
 use std::fs;
 use std::fs::File;
-use std::io::BufReader;
 
 // Tests if it is able to parse a stream of BGP4MP messages.
 #[test]
