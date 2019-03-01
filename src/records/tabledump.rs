@@ -105,7 +105,7 @@ pub enum TABLE_DUMP_V2 {
     RIB_IPV4_MULTICAST_ADDPATH(RIB_AFI_ADDPATH),
     RIB_IPV6_UNICAST_ADDPATH(RIB_AFI_ADDPATH),
     RIB_IPV6_MULTICAST_ADDPATH(RIB_AFI_ADDPATH),
-    RIB_GENERIC_ADDPATH(RIB_AFI_ADDPATH),
+    RIB_GENERIC_ADDPATH(RIB_GENERIC_ADDPATH),
 }
 
 /// This record provides the BGP ID of the collector, an optional view name,
@@ -393,6 +393,64 @@ impl RIB_AFI_ADDPATH {
     }
 }
 
+/// Represents a collection of routes for a specific IP prefix.
+#[derive(Debug)]
+#[allow(non_camel_case_types)]
+pub struct RIB_GENERIC_ADDPATH {
+    /// A sequence number that identifies the route collection. Wraps back to zero on overflow.
+    pub sequence_number: u32,
+
+    /// The Address Family Identifier (AFI) of this RIB entry.
+    pub afi: AFI,
+
+    /// The Subsequent Address Family Identifier (SAFI) of this RIB entry.
+    pub safi: u8,
+
+    /// The NLRI in bytes.
+    pub nlri: Vec<u8>,
+
+    /// A collection of routes to this prefix.
+    pub entries: Vec<RIBEntryAddPath>,
+}
+
+impl RIB_GENERIC_ADDPATH {
+    fn parse(stream: &mut Read) -> Result<RIB_GENERIC_ADDPATH, Error> {
+        let sequence_number = stream.read_u32::<BigEndian>()?;
+        let afi = AFI::from(stream.read_u16::<BigEndian>()?)?;
+        let safi = stream.read_u8()?;
+
+        let length = match afi {
+            AFI::IPV4 => {
+                match safi {
+                    // MPLS-labeled VPN address
+                    128 => (stream.read_u8()? + 7) / 8,
+
+                    // Default to 4.
+                    _ => 4,
+                }
+            }
+            AFI::IPV6 => 16,
+        };
+
+        let mut nlri: Vec<u8> = vec![0; length as usize];
+        stream.read_exact(&mut nlri)?;
+
+        let entry_count = stream.read_u16::<BigEndian>()?;
+        let mut entries: Vec<RIBEntryAddPath> = Vec::with_capacity(entry_count as usize);
+        for _ in 0..entry_count {
+            entries.push(RIBEntryAddPath::parse(stream)?);
+        }
+
+        Ok(RIB_GENERIC_ADDPATH {
+            sequence_number,
+            afi,
+            safi,
+            nlri,
+            entries,
+        })
+    }
+}
+
 #[allow(non_camel_case_types)]
 impl TABLE_DUMP_V2 {
     ///
@@ -423,7 +481,7 @@ impl TABLE_DUMP_V2 {
             9 => Ok(TABLE_DUMP_V2::RIB_IPV4_MULTICAST_ADDPATH (RIB_AFI_ADDPATH::parse(stream)?)),
             10 => Ok(TABLE_DUMP_V2::RIB_IPV6_UNICAST_ADDPATH (RIB_AFI_ADDPATH::parse(stream)?)),
             11 => Ok(TABLE_DUMP_V2::RIB_IPV6_MULTICAST_ADDPATH (RIB_AFI_ADDPATH::parse(stream)?)),
-            12 => unimplemented!("TABLE_DUMP_V2::RIB_GENERIC_ADDPATH sub-type does not yet have known AFI/SAFI implementations."),
+            12 => Ok(TABLE_DUMP_V2::RIB_GENERIC_ADDPATH (RIB_GENERIC_ADDPATH::parse(stream)?)),
             _ => {
                 let msg = format!(
                     "{} is not a valid sub-type of Tabledump v2",
