@@ -477,11 +477,21 @@ impl TABLE_DUMP_V2 {
             4 => Ok(TABLE_DUMP_V2::RIB_IPV6_UNICAST(RIB_AFI::parse(stream)?)),
             5 => Ok(TABLE_DUMP_V2::RIB_IPV6_MULTICAST(RIB_AFI::parse(stream)?)),
             6 => Ok(TABLE_DUMP_V2::RIB_GENERIC(RIB_GENERIC::parse(stream)?)),
-            8 => Ok(TABLE_DUMP_V2::RIB_IPV4_UNICAST_ADDPATH (RIB_AFI_ADDPATH::parse(stream)?)),
-            9 => Ok(TABLE_DUMP_V2::RIB_IPV4_MULTICAST_ADDPATH (RIB_AFI_ADDPATH::parse(stream)?)),
-            10 => Ok(TABLE_DUMP_V2::RIB_IPV6_UNICAST_ADDPATH (RIB_AFI_ADDPATH::parse(stream)?)),
-            11 => Ok(TABLE_DUMP_V2::RIB_IPV6_MULTICAST_ADDPATH (RIB_AFI_ADDPATH::parse(stream)?)),
-            12 => Ok(TABLE_DUMP_V2::RIB_GENERIC_ADDPATH (RIB_GENERIC_ADDPATH::parse(stream)?)),
+            8 => Ok(TABLE_DUMP_V2::RIB_IPV4_UNICAST_ADDPATH(
+                RIB_AFI_ADDPATH::parse(stream)?,
+            )),
+            9 => Ok(TABLE_DUMP_V2::RIB_IPV4_MULTICAST_ADDPATH(
+                RIB_AFI_ADDPATH::parse(stream)?,
+            )),
+            10 => Ok(TABLE_DUMP_V2::RIB_IPV6_UNICAST_ADDPATH(
+                RIB_AFI_ADDPATH::parse(stream)?,
+            )),
+            11 => Ok(TABLE_DUMP_V2::RIB_IPV6_MULTICAST_ADDPATH(
+                RIB_AFI_ADDPATH::parse(stream)?,
+            )),
+            12 => Ok(TABLE_DUMP_V2::RIB_GENERIC_ADDPATH(
+                RIB_GENERIC_ADDPATH::parse(stream)?,
+            )),
             _ => {
                 let msg = format!(
                     "{} is not a valid sub-type of Tabledump v2",
