@@ -50,8 +50,7 @@ Examples on how [bgp-rs](https://github.com/DevQps/bgp-rs) and [mrt-rs](https://
 
 ## Full support
 All MRT record types, including deprecated types, that are mentioned in [RFC6396](https://tools.ietf.org/html/rfc6396) and [RFC8050](https://tools.ietf.org/html/rfc8050) are supported.
-It should be noted however that only BGP4MP and TABLE_DUMP_V2 messages currently contain tests.
-This is due to the fact that I do not have MRT-formatted streams for other protocols.
+It should be noted that not all code is tested. This is due to the fact that I do not have MRT-formatted streams for other protocols.
 
 **Supported MRT types:**
 - NULL
@@ -66,7 +65,7 @@ This is due to the fact that I do not have MRT-formatted streams for other proto
 - BGP4PLUS
 - BGP4PLUS_01
 - OSPFv2
-- TABLE_DUMP
+- **[Tested]** TABLE_DUMP
 - **[Tested]** TABLE_DUMP_V2
   - Including [RFC8050](https://tools.ietf.org/html/rfc8050) sub-types.
 - **[Tested]** BGP4MP
