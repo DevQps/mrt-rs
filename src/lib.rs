@@ -7,22 +7,15 @@
 //! ## Reading a MRT file containing BPG messages
 //! ```
 //! use std::fs::File;
-//! use std::io::Cursor;
-//! use std::io::Read;
-//! use std::io::BufReader;
 //! use mrt_rs::{Reader, Record};
 //! use mrt_rs::bgp4mp::BGP4MP;
-//! use libflate::gzip::Decoder;
 //!
 //! fn main() {
 //!     // Open an MRT-formatted file.
-//!     let file = File::open("res/updates.20190101.0000.gz").unwrap();
-//!
-//!     // Decode the GZIP stream using BufReader for better performance.
-//!     let mut decoder = Decoder::new(BufReader::new(file)).unwrap();
+//!     let file = File::open("res/bird-mrtdump_bgp").unwrap();
 //!
 //!     // Create a new Reader with a Cursor such that we can keep track of the position.
-//!     let mut reader = Reader { stream: decoder };
+//!     let mut reader = Reader { stream: file };
 //!
 //!     // Keep reading (Header, Record) tuples till the end of the file has been reached.
 //!     while let Ok(Some((header, record))) = reader.read() {
@@ -78,7 +71,7 @@ pub use records::tabledump;
 /// Represents an Address Family Idenfitier. Currently only IPv4 and IPv6 are supported.
 #[derive(Debug)]
 #[repr(u16)]
-enum AFI {
+pub enum AFI {
     /// Internet Protocol version 4 (32 bits)
     IPV4 = 1,
     /// Internet Protocol version 6 (128 bits)
@@ -100,6 +93,7 @@ impl AFI {
         }
     }
 
+    /// Returns the size in bytes of the an instance of this address family type.
     pub fn size(&self) -> u32 {
         match self {
             AFI::IPV4 => 4,
@@ -266,9 +260,9 @@ where
                 let record = records::ospf::OSPFv3::parse(&header, &mut self.stream)?;
                 Ok(Some((header, Record::OSPFv3_ET(record))))
             }
-            _ => Err(Error::new(
+            x => Err(Error::new(
                 ErrorKind::Other,
-                "Unknown record type found in MRT header",
+                format!("Unknown record type found in MRT header: {}", x),
             )),
         }
     }
