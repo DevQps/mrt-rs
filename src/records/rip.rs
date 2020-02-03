@@ -33,7 +33,7 @@ impl RIP {
     /// # Safety
     /// This function does not make use of unsafe code.
     ///
-    pub fn parse(header: &Header, stream: &mut Read) -> Result<RIP, Error> {
+    pub fn parse(header: &Header, stream: &mut dyn Read) -> Result<RIP, Error> {
         // The fixed size of the header consisting of two IPv4 addresses.
         let length = (header.length - 2 * AFI::IPV4.size()) as usize;
         let mut record = RIP {
@@ -76,7 +76,7 @@ impl RIPNG {
     /// # Safety
     /// This function does not make use of unsafe code.
     ///
-    pub fn parse(header: &Header, stream: &mut Read) -> Result<RIPNG, Error> {
+    pub fn parse(header: &Header, stream: &mut dyn Read) -> Result<RIPNG, Error> {
         // The fixed size of the header consisting of two IPv4 addresses.
         let length = (header.length - 2 * AFI::IPV6.size()) as usize;
         let mut record = RIPNG {

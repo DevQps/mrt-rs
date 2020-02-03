@@ -82,7 +82,7 @@ pub struct STATE_CHANGE {
 }
 
 impl STATE_CHANGE {
-    fn parse(stream: &mut Read) -> Result<STATE_CHANGE, Error> {
+    fn parse(stream: &mut dyn Read) -> Result<STATE_CHANGE, Error> {
         let peer_as = stream.read_u16::<BigEndian>()?;
         let local_as = stream.read_u16::<BigEndian>()?;
         let interface = stream.read_u16::<BigEndian>()?;
@@ -134,7 +134,7 @@ pub struct MESSAGE {
 }
 
 impl MESSAGE {
-    fn parse(header: &Header, stream: &mut Read) -> Result<MESSAGE, Error> {
+    fn parse(header: &Header, stream: &mut dyn Read) -> Result<MESSAGE, Error> {
         let peer_as = stream.read_u16::<BigEndian>()?;
         let local_as = stream.read_u16::<BigEndian>()?;
         let interface = stream.read_u16::<BigEndian>()?;
@@ -187,7 +187,7 @@ pub struct MESSAGE_AS4 {
 }
 
 impl MESSAGE_AS4 {
-    fn parse(header: &Header, stream: &mut Read) -> Result<MESSAGE_AS4, Error> {
+    fn parse(header: &Header, stream: &mut dyn Read) -> Result<MESSAGE_AS4, Error> {
         let peer_as = stream.read_u32::<BigEndian>()?;
         let local_as = stream.read_u32::<BigEndian>()?;
         let interface = stream.read_u16::<BigEndian>()?;
@@ -253,7 +253,7 @@ pub struct STATE_CHANGE_AS4 {
 }
 
 impl STATE_CHANGE_AS4 {
-    fn parse(stream: &mut Read) -> Result<STATE_CHANGE_AS4, Error> {
+    fn parse(stream: &mut dyn Read) -> Result<STATE_CHANGE_AS4, Error> {
         let peer_as = stream.read_u32::<BigEndian>()?;
         let local_as = stream.read_u32::<BigEndian>()?;
         let interface = stream.read_u16::<BigEndian>()?;
@@ -293,7 +293,7 @@ pub struct SNAPSHOT {
 }
 
 impl SNAPSHOT {
-    fn parse(stream: &mut Read) -> Result<SNAPSHOT, Error> {
+    fn parse(stream: &mut dyn Read) -> Result<SNAPSHOT, Error> {
         let view_number = stream.read_u16::<BigEndian>()?;
         let mut filename = Vec::new();
 
@@ -359,7 +359,7 @@ pub struct ENTRY {
 }
 
 impl ENTRY {
-    fn parse(stream: &mut Read) -> Result<ENTRY, Error> {
+    fn parse(stream: &mut dyn Read) -> Result<ENTRY, Error> {
         let peer_as = stream.read_u16::<BigEndian>()?;
         let local_as = stream.read_u16::<BigEndian>()?;
         let interface = stream.read_u16::<BigEndian>()?;
@@ -440,7 +440,7 @@ impl BGP4MP {
     /// # Safety
     /// This function does not make use of unsafe code.
     ///
-    pub(crate) fn parse(header: &Header, stream: &mut Read) -> Result<BGP4MP, Error> {
+    pub(crate) fn parse(header: &Header, stream: &mut dyn Read) -> Result<BGP4MP, Error> {
         debug_assert!(
             header.record_type == 16 || header.record_type == 17,
             "Invalid record type in MRTHeader, expected BGP4MP record type."

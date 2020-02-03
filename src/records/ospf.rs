@@ -33,7 +33,7 @@ impl OSPFv2 {
     /// # Safety
     /// This function does not make use of unsafe code.
     ///
-    pub fn parse(header: &Header, stream: &mut Read) -> Result<OSPFv2, Error> {
+    pub fn parse(header: &Header, stream: &mut dyn Read) -> Result<OSPFv2, Error> {
         // The fixed size of the header consisting of two IPv4 addresses.
         let length = (header.length - 2 * AFI::IPV4.size()) as usize;
         let mut record = OSPFv2 {
@@ -76,7 +76,7 @@ impl OSPFv3 {
     /// # Safety
     /// This function does not make use of unsafe code.
     ///
-    pub fn parse(header: &Header, stream: &mut Read) -> Result<OSPFv3, Error> {
+    pub fn parse(header: &Header, stream: &mut dyn Read) -> Result<OSPFv3, Error> {
         let mut record = match AFI::from(stream.read_u16::<BigEndian>()?)? {
             AFI::IPV4 => {
                 let length = (header.length - 2 * AFI::IPV4.size()) as usize;
