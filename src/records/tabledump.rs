@@ -190,6 +190,129 @@ impl PeerEntry {
     }
 }
 
+/// RFC4271, https://tools.ietf.org/html/rfc4271#section-5.1
+#[derive(Debug, PartialEq)]
+#[allow(missing_docs)]
+pub enum PathAttribute {
+    /// Type Code 1: a well-known mandatory attribute that defines the origin of the path
+    /// information
+    ORIGIN(Origin),
+    ASPATH,
+    NEXTHOP,
+    MULTIEXITDISC,
+    LOCALPREF,
+    ATOMICAGGREGATE,
+    AGGREGATOR,
+}
+
+/// ORIGIN (Type Code 1) is a well-known mandatory attribute that defines the origin of the path information.
+#[derive(Debug, PartialEq)]
+pub enum Origin {
+    /// Value: 0 - Network Layer Reachability Information is interior to the originating AS
+    IGP,
+    /// Value: 1 - Network Layer Reachability Information is learned via the EGP protocol [RFC904]
+    EGP,
+    /// Value: 2 - Network Layer Reachability Information is learned by some other means
+    INCOMPLETE,
+}
+
+impl Origin {
+    ///  Parse ORIGIN type code values
+    pub fn parse(stream: &mut dyn Read) -> Result<Origin, Error> {
+        let mut buffer = [0; 1];
+        stream.read_exact(&mut buffer)?;
+
+        println!("buffer: {:?}", buffer);
+        match buffer[0] {
+            0 => return Ok(Origin::IGP),
+            1 => return Ok(Origin::EGP),
+            2 => return Ok(Origin::INCOMPLETE),
+            _ => panic!(
+                "Origin type {} dne. TODO: handle error case with invalid origin values",
+                buffer[0]
+            ),
+        }
+    }
+}
+
+use std::convert::TryInto;
+fn read_be_u32(input: &mut &[u8]) -> u32 {
+    let (int_bytes, rest) = input.split_at(std::mem::size_of::<u32>());
+    *input = rest;
+    u32::from_be_bytes(int_bytes.try_into().unwrap())
+}
+
+/// From https://tools.ietf.org/html/rfc4271 Section 4.3 UPDATE Message Format
+/// Each path attribute is a triple <attribute type, attribute length, attribute value> of
+/// variable length.
+///
+///        0                   1
+///        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+///        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+///        |  Attr. Flags  |Attr. Type Code|
+///        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+///
+/// Attribute Type is a two-octet field that consists of the Attribute Flag octet, followed by
+/// the Attribute Type Code octet
+impl PathAttribute {
+    /// The fourth high-order bit (bit 3) of the Attribute Flags octet is the Extended Length
+    /// bit. It defines whether the Attribute Length is one octet (if set to 0) or two octets
+    /// (if set to 1).
+    ///
+    /// The lower-order four bits of the Attribute Flags octet are unused. They MUST be zero
+    /// when sent and MUST be ignored when received.
+    pub fn parse(stream: &mut dyn Read, _attribute_length: u16) -> Result<PathAttribute, Error> {
+        let mut attribute_buffer: Vec<u8> = vec![0; 2];
+        stream.read_exact(&mut attribute_buffer)?;
+
+        let flag = attribute_buffer[0];
+        let type_code = attribute_buffer[1];
+
+        // TODO: first, second, and third high-order bit (bits 0, 1, 2)
+
+        // Extended Length bit
+        let length_bit = flag & (1 << 4);
+
+        let attribute_length = if length_bit != 0 {
+            let mut attribute_buffer: Vec<u8> = vec![0; 2];
+            stream.read_exact(&mut attribute_buffer)?;
+            let mut attribute_length = &attribute_buffer[..];
+            read_be_u32(&mut attribute_length)
+        } else {
+            let mut attribute_buffer: Vec<u8> = vec![0; 1];
+            stream.read_exact(&mut attribute_buffer)?;
+            attribute_buffer[0] as u32
+        };
+
+        // Lower-order four bits of the Attribute Flags octet
+        for i in 1..4 {
+            let mask = 1 << i;
+            if flag & mask != 0 {
+                panic!("handle invalid attribute flag with a lower-order four bit not equal to 0");
+            }
+        }
+
+        let attribute = match type_code {
+            1 => {
+                if attribute_length != 1 {
+                    panic!("Origin type code must have an attribute length of 1, not {}. TODO: handle error", attribute_length)
+                } else {
+                    PathAttribute::ORIGIN(Origin::parse(stream)?)
+                }
+            }
+            2 => PathAttribute::ASPATH,
+            3 => PathAttribute::NEXTHOP,
+            4 => PathAttribute::MULTIEXITDISC,
+            5 => PathAttribute::LOCALPREF,
+            6 => PathAttribute::ATOMICAGGREGATE,
+            7 => PathAttribute::AGGREGATOR,
+            _ => panic!("TODO: Handle all Type Codes"),
+        };
+
+        Ok(attribute)
+    }
+}
+
 /// Represents a route in the Routing Information Base (RIB)
 #[derive(Debug)]
 pub struct RIBEntry {
@@ -200,17 +323,23 @@ pub struct RIBEntry {
     pub originated_time: u32,
 
     /// The BGP Path attributes associated with this route.
-    pub attributes: Vec<u8>,
+    pub attributes: Vec<PathAttribute>,
 }
 
 impl RIBEntry {
-    fn parse(stream: &mut Read) -> Result<RIBEntry, Error> {
+    fn parse(stream: &mut dyn Read) -> Result<RIBEntry, Error> {
         let peer_index = stream.read_u16::<BigEndian>()?;
         let originated_time = stream.read_u32::<BigEndian>()?;
         let attribute_length = stream.read_u16::<BigEndian>()?;
 
-        let mut attributes: Vec<u8> = vec![0; attribute_length as usize];
-        stream.read_exact(&mut attributes)?;
+        let mut attribute_bytes: Vec<u8> = vec![0; attribute_length as usize];
+        stream.read_exact(&mut attribute_bytes)?;
+        PathAttribute::parse(stream, attribute_length)?;
+
+        let origin_attr = PathAttribute::ORIGIN(Origin::IGP);
+
+        let mut attributes: Vec<PathAttribute> = Vec::new();
+        attributes.push(origin_attr);
 
         Ok(RIBEntry {
             peer_index,
@@ -500,5 +629,41 @@ impl TABLE_DUMP_V2 {
                 Err(std::io::Error::new(std::io::ErrorKind::Other, msg))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    #[test]
+    fn parse_origin_igp() -> Result<(), Error> {
+        let mut rdr = Cursor::new(vec![64, 1, 1, 0]);
+        let have = PathAttribute::parse(&mut rdr, 4u16)?;
+        let want = PathAttribute::ORIGIN(Origin::IGP);
+
+        assert_eq!(have, want);
+        Ok(())
+    }
+
+    #[test]
+    fn parse_origin_egp() -> Result<(), Error> {
+        let mut rdr = Cursor::new(vec![64, 1, 1, 1]);
+        let have = PathAttribute::parse(&mut rdr, 4u16)?;
+        let want = PathAttribute::ORIGIN(Origin::EGP);
+
+        assert_eq!(have, want);
+        Ok(())
+    }
+
+    #[test]
+    fn parse_origin_incomplete() -> Result<(), Error> {
+        let mut rdr = Cursor::new(vec![64, 1, 1, 2]);
+        let have = PathAttribute::parse(&mut rdr, 4u16)?;
+        let want = PathAttribute::ORIGIN(Origin::INCOMPLETE);
+
+        assert_eq!(have, want);
+        Ok(())
     }
 }
