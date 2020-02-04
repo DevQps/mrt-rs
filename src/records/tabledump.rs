@@ -5,6 +5,13 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use crate::Header;
 use crate::AFI;
 
+use std::convert::TryInto;
+fn read_be_u32(input: &mut &[u8]) -> u32 {
+    let (int_bytes, rest) = input.split_at(std::mem::size_of::<u32>());
+    *input = rest;
+    u32::from_be_bytes(int_bytes.try_into().unwrap())
+}
+
 /// Represents a RIB entry of a Routing Information Base.
 #[derive(Debug)]
 #[allow(non_camel_case_types)]
@@ -197,7 +204,7 @@ pub enum PathAttribute {
     /// Type Code 1: a well-known mandatory attribute that defines the origin of the path
     /// information
     ORIGIN(Origin),
-    ASPATH,
+    ASPATH(AsPath),
     NEXTHOP,
     MULTIEXITDISC,
     LOCALPREF,
@@ -222,7 +229,6 @@ impl Origin {
         let mut buffer = [0; 1];
         stream.read_exact(&mut buffer)?;
 
-        println!("buffer: {:?}", buffer);
         match buffer[0] {
             0 => return Ok(Origin::IGP),
             1 => return Ok(Origin::EGP),
@@ -235,11 +241,69 @@ impl Origin {
     }
 }
 
-use std::convert::TryInto;
-fn read_be_u32(input: &mut &[u8]) -> u32 {
-    let (int_bytes, rest) = input.split_at(std::mem::size_of::<u32>());
-    *input = rest;
-    u32::from_be_bytes(int_bytes.try_into().unwrap())
+/// AS_PATH (Type Code 2) is a well-known mandatory attribute that is composed of a sequence of AS
+/// path path segments. Each AS path segment is represented by a triple <path segment type, path
+/// segment length, path segment value>.
+#[derive(Debug, PartialEq)]
+pub struct AsPath {
+    /// Path segment type is a 1-octet length field with the value of AS_SET (1) or AS_SEQUENCE (2)
+    segment_type: SegmentType,
+    /// Set of ASes a route in the UPDATE message has traversed. Ordering is determined by the
+    /// segment_type
+    as_path: Vec<u32>,
+}
+
+impl AsPath {
+    /// Parse AS_PATH type code values
+    pub fn parse(stream: &mut dyn Read) -> Result<AsPath, Error> {
+        let segment_type = SegmentType::parse(stream)?;
+
+        let mut buffer = [0; 1];
+        stream.read_exact(&mut buffer)?;
+
+        let as_path_len = buffer[0];
+        let mut as_path: Vec<u32> = Vec::new();
+
+        for _ in 0..as_path_len {
+            let mut buffer = [0; 4];
+            stream.read_exact(&mut buffer)?;
+            let mut asn_bytes = &buffer[..];
+            as_path.push(read_be_u32(&mut asn_bytes));
+        }
+
+        Ok(AsPath {
+            segment_type,
+            as_path,
+        })
+    }
+}
+
+/// Path segment type is a 1-octet length field that indicates if the ASes are unordered (AS_SET)
+/// or ordered (AS_SEQUENCE).
+#[allow(non_camel_case_types)]
+#[derive(Debug, PartialEq)]
+pub enum SegmentType {
+    /// Value: 1 - AS_SET: unordered set of ASes a route in the UPDATE message has traversed
+    AS_SET,
+    /// Value: 2 - AS_SEQUENCE: ordered set of ASes a route in the UPDATE message has traversed
+    AS_SEQUENCE,
+}
+
+impl SegmentType {
+    /// Parse segment type as AS_SET or AS_SEQUENCE
+    pub fn parse(stream: &mut dyn Read) -> Result<SegmentType, Error> {
+        let mut buffer = [0; 1];
+        stream.read_exact(&mut buffer)?;
+
+        match buffer[0] {
+            1 => return Ok(SegmentType::AS_SET),
+            2 => return Ok(SegmentType::AS_SEQUENCE),
+            _ => panic!(
+                "Segment type {} dne. TODO: handle error case with invalid segment types",
+                buffer[0]
+            ),
+        }
+    }
 }
 
 /// From https://tools.ietf.org/html/rfc4271 Section 4.3 UPDATE Message Format
@@ -261,7 +325,10 @@ impl PathAttribute {
     ///
     /// The lower-order four bits of the Attribute Flags octet are unused. They MUST be zero
     /// when sent and MUST be ignored when received.
-    pub fn parse(stream: &mut dyn Read, _attribute_length: u16) -> Result<PathAttribute, Error> {
+    pub fn parse(
+        stream: &mut dyn Read,
+        _all_atributes_length: u16,
+    ) -> Result<PathAttribute, Error> {
         let mut attribute_buffer: Vec<u8> = vec![0; 2];
         stream.read_exact(&mut attribute_buffer)?;
 
@@ -300,7 +367,7 @@ impl PathAttribute {
                     PathAttribute::ORIGIN(Origin::parse(stream)?)
                 }
             }
-            2 => PathAttribute::ASPATH,
+            2 => PathAttribute::ASPATH(AsPath::parse(stream)?),
             3 => PathAttribute::NEXTHOP,
             4 => PathAttribute::MULTIEXITDISC,
             5 => PathAttribute::LOCALPREF,
@@ -663,6 +730,52 @@ mod tests {
         let have = PathAttribute::parse(&mut rdr, 4u16)?;
         let want = PathAttribute::ORIGIN(Origin::INCOMPLETE);
 
+        assert_eq!(have, want);
+        Ok(())
+    }
+
+    #[test]
+    fn parse_aspath_unordered() -> Result<(), Error> {
+        let mut rdr = Cursor::new(vec![64, 2, 10, 1, 2, 0, 0, 165, 233, 0, 0, 5, 19]);
+        let have = PathAttribute::parse(&mut rdr, 13u16)?;
+        let as_path_values = AsPath {
+            segment_type: SegmentType::AS_SET,
+            as_path: vec![42473, 1299],
+        };
+        let want = PathAttribute::ASPATH(as_path_values);
+
+        assert_eq!(have, want);
+        Ok(())
+    }
+
+    #[test]
+    fn parse_aspath_ordered() -> Result<(), Error> {
+        let mut rdr = Cursor::new(vec![64, 2, 10, 2, 2, 0, 0, 165, 233, 0, 0, 5, 19]);
+        let have = PathAttribute::parse(&mut rdr, 13u16)?;
+        let as_path_values = AsPath {
+            segment_type: SegmentType::AS_SEQUENCE,
+            as_path: vec![42473, 1299],
+        };
+        let want = PathAttribute::ASPATH(as_path_values);
+
+        assert_eq!(have, want);
+        Ok(())
+    }
+
+    #[test]
+    fn parse_segment_type_unordered() -> Result<(), Error> {
+        let mut rdr = Cursor::new(vec![1]);
+        let have = SegmentType::parse(&mut rdr)?;
+        let want = SegmentType::AS_SET;
+        assert_eq!(have, want);
+        Ok(())
+    }
+
+    #[test]
+    fn parse_segment_type_ordered() -> Result<(), Error> {
+        let mut rdr = Cursor::new(vec![2]);
+        let have = SegmentType::parse(&mut rdr)?;
+        let want = SegmentType::AS_SEQUENCE;
         assert_eq!(have, want);
         Ok(())
     }
