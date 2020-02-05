@@ -205,11 +205,12 @@ pub enum PathAttribute {
     /// information
     ORIGIN(Origin),
     ASPATH(AsPath),
-    NEXTHOP,
+    NEXTHOP(NextHop),
     MULTIEXITDISC,
     LOCALPREF,
     ATOMICAGGREGATE,
     AGGREGATOR,
+    COMMUNITY(Community),
 }
 
 /// ORIGIN (Type Code 1) is a well-known mandatory attribute that defines the origin of the path information.
@@ -306,6 +307,52 @@ impl SegmentType {
     }
 }
 
+/// This is a well-known mandatory attribute that defines the (unicast) IP address of the router
+/// that SHOULD be used as the next hop to the destinations listed in the Network Layer
+/// Reachability Information field of the UPDATE message.
+#[derive(Debug, PartialEq)]
+pub struct NextHop {
+    next_hop: std::net::IpAddr,
+}
+
+impl NextHop {
+    /// Parse NEXT_HOP type code value
+    pub fn parse(stream: &mut dyn Read, attribute_length: u32) -> Result<NextHop, Error> {
+        let next_hop = match attribute_length {
+            4 => IpAddr::V4(Ipv4Addr::from(stream.read_u32::<BigEndian>()?)),
+            8 => IpAddr::V6(Ipv6Addr::from(stream.read_u128::<BigEndian>()?)),
+            _ => panic!(
+                "Next hop address cannot have length {}. TODO: handle error case",
+                attribute_length
+            ),
+        };
+
+        Ok(NextHop { next_hop })
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, PartialEq)]
+pub struct Community {
+    communities: Vec<(u16, u16)>,
+}
+
+impl Community {
+    #[allow(missing_docs)]
+    pub fn parse(stream: &mut dyn Read, attribute_length: u32) -> Result<Community, Error> {
+        let mut communities: Vec<(u16, u16)> = Vec::new();
+
+        let num_community_pairs = attribute_length / 4;
+        for _ in 0..num_community_pairs {
+            let left = stream.read_u16::<BigEndian>()?;
+            let right = stream.read_u16::<BigEndian>()?;
+            communities.push((left, right));
+        }
+
+        Ok(Community { communities })
+    }
+}
+
 /// From https://tools.ietf.org/html/rfc4271 Section 4.3 UPDATE Message Format
 /// Each path attribute is a triple <attribute type, attribute length, attribute value> of
 /// variable length.
@@ -368,11 +415,12 @@ impl PathAttribute {
                 }
             }
             2 => PathAttribute::ASPATH(AsPath::parse(stream)?),
-            3 => PathAttribute::NEXTHOP,
+            3 => PathAttribute::NEXTHOP(NextHop::parse(stream, attribute_length)?),
             4 => PathAttribute::MULTIEXITDISC,
             5 => PathAttribute::LOCALPREF,
             6 => PathAttribute::ATOMICAGGREGATE,
             7 => PathAttribute::AGGREGATOR,
+            8 => PathAttribute::COMMUNITY(Community::parse(stream, attribute_length)?),
             _ => panic!("TODO: Handle all Type Codes"),
         };
 
@@ -777,6 +825,42 @@ mod tests {
         let have = SegmentType::parse(&mut rdr)?;
         let want = SegmentType::AS_SEQUENCE;
         assert_eq!(have, want);
+        Ok(())
+    }
+
+    #[test]
+    fn parse_next_hop_ipv4() -> Result<(), Error> {
+        let mut rdr = Cursor::new(vec![64, 3, 4, 195, 66, 226, 113]);
+        let have = PathAttribute::parse(&mut rdr, 7u16)?;
+        let next_hop = IpAddr::from([195u8, 66u8, 226u8, 113u8]);
+        let want = PathAttribute::NEXTHOP(NextHop { next_hop });
+
+        assert_eq!(have, want);
+        Ok(())
+    }
+
+    #[test]
+    fn parse_communities() -> Result<(), Error> {
+        let community_bytes = vec![
+            192, 8, 24, 184, 43, 5, 222, 184, 43, 7, 208, 184, 43, 8, 64, 184, 43, 8, 252, 184, 43,
+            9, 112, 184, 43, 10, 40,
+        ];
+        let community_byte_len = community_bytes.len() as u16;
+        let mut rdr = Cursor::new(community_bytes);
+        let have = PathAttribute::parse(&mut rdr, community_byte_len)?;
+
+        // 47147:1502 47147:2000 47147:2112 47147:2300 47147:2416 47147:2600
+        let mut communities: Vec<(u16, u16)> = Vec::new();
+        communities.push((47147, 1502));
+        communities.push((47147, 2000));
+        communities.push((47147, 2112));
+        communities.push((47147, 2300));
+        communities.push((47147, 2416));
+        communities.push((47147, 2600));
+        let want = PathAttribute::COMMUNITY(Community { communities });
+
+        assert_eq!(have, want);
+
         Ok(())
     }
 }
