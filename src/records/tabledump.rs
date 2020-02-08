@@ -206,7 +206,7 @@ pub enum PathAttribute {
     ORIGIN(Origin),
     ASPATH(AsPath),
     NEXTHOP(NextHop),
-    MULTIEXITDISC,
+    MULTIEXITDISC(MultiExitDisc),
     LOCALPREF,
     ATOMICAGGREGATE,
     AGGREGATOR,
@@ -268,14 +268,16 @@ impl AsPath {
         for _ in 0..as_path_len {
             let mut buffer = [0; 4];
             stream.read_exact(&mut buffer)?;
+
             let mut asn_bytes = &buffer[..];
             as_path.push(read_be_u32(&mut asn_bytes));
         }
 
-        Ok(AsPath {
+        let attribute = AsPath {
             segment_type,
             as_path,
-        })
+        };
+        Ok(attribute)
     }
 }
 
@@ -333,6 +335,28 @@ impl NextHop {
 
 #[allow(missing_docs)]
 #[derive(Debug, PartialEq)]
+pub struct MultiExitDisc {
+    ip: std::net::IpAddr,
+}
+
+impl MultiExitDisc {
+    /// Parse MULTIEXITDISC type code value
+    pub fn parse(stream: &mut dyn Read, attribute_length: u32) -> Result<MultiExitDisc, Error> {
+        let ip = match attribute_length {
+            4 => IpAddr::V4(Ipv4Addr::from(stream.read_u32::<BigEndian>()?)),
+            8 => IpAddr::V6(Ipv6Addr::from(stream.read_u128::<BigEndian>()?)),
+            _ => panic!(
+                "Multi Exit Disc address cannot have length {}. TODO: handle error case",
+                attribute_length
+            ),
+        };
+
+        Ok(MultiExitDisc { ip })
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, PartialEq)]
 pub struct Community {
     communities: Vec<(u16, u16)>,
 }
@@ -372,10 +396,7 @@ impl PathAttribute {
     ///
     /// The lower-order four bits of the Attribute Flags octet are unused. They MUST be zero
     /// when sent and MUST be ignored when received.
-    pub fn parse(
-        stream: &mut dyn Read,
-        _all_atributes_length: u16,
-    ) -> Result<PathAttribute, Error> {
+    pub fn parse(stream: &mut dyn Read) -> Result<PathAttribute, Error> {
         let mut attribute_buffer: Vec<u8> = vec![0; 2];
         stream.read_exact(&mut attribute_buffer)?;
 
@@ -384,18 +405,21 @@ impl PathAttribute {
 
         // TODO: first, second, and third high-order bit (bits 0, 1, 2)
 
-        // Extended Length bit
-        let length_bit = flag & (1 << 4);
-
-        let attribute_length = if length_bit != 0 {
-            let mut attribute_buffer: Vec<u8> = vec![0; 2];
-            stream.read_exact(&mut attribute_buffer)?;
-            let mut attribute_length = &attribute_buffer[..];
-            read_be_u32(&mut attribute_length)
-        } else {
-            let mut attribute_buffer: Vec<u8> = vec![0; 1];
-            stream.read_exact(&mut attribute_buffer)?;
-            attribute_buffer[0] as u32
+        // Determine attribute length using the Extended Length bit
+        let attribute_length = match flag & (1 << 4) {
+            0 => {
+                // Attribute length is represented in one byte
+                let mut attribute_buffer: Vec<u8> = vec![0; 1];
+                stream.read_exact(&mut attribute_buffer)?;
+                attribute_buffer[0] as u32
+            }
+            _ => {
+                // Attribute length is represented in two bytes
+                let mut attribute_buffer: Vec<u8> = vec![0; 2];
+                stream.read_exact(&mut attribute_buffer)?;
+                let mut attribute_length = &attribute_buffer[..];
+                read_be_u32(&mut attribute_length)
+            }
         };
 
         // Lower-order four bits of the Attribute Flags octet
@@ -416,10 +440,10 @@ impl PathAttribute {
             }
             2 => PathAttribute::ASPATH(AsPath::parse(stream)?),
             3 => PathAttribute::NEXTHOP(NextHop::parse(stream, attribute_length)?),
-            4 => PathAttribute::MULTIEXITDISC,
-            5 => PathAttribute::LOCALPREF,
-            6 => PathAttribute::ATOMICAGGREGATE,
-            7 => PathAttribute::AGGREGATOR,
+            4 => PathAttribute::MULTIEXITDISC(MultiExitDisc::parse(stream, attribute_length)?),
+            // 5 => PathAttribute::LOCALPREF,
+            // 6 => PathAttribute::ATOMICAGGREGATE,
+            // 7 => PathAttribute::AGGREGATOR,
             8 => PathAttribute::COMMUNITY(Community::parse(stream, attribute_length)?),
             _ => panic!("TODO: Handle all Type Codes"),
         };
@@ -429,7 +453,7 @@ impl PathAttribute {
 }
 
 /// Represents a route in the Routing Information Base (RIB)
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct RIBEntry {
     /// The index of the peer inside the PEER_INDEX_TABLE.
     pub peer_index: u16,
@@ -445,16 +469,19 @@ impl RIBEntry {
     fn parse(stream: &mut dyn Read) -> Result<RIBEntry, Error> {
         let peer_index = stream.read_u16::<BigEndian>()?;
         let originated_time = stream.read_u32::<BigEndian>()?;
-        let attribute_length = stream.read_u16::<BigEndian>()?;
-
-        let mut attribute_bytes: Vec<u8> = vec![0; attribute_length as usize];
-        stream.read_exact(&mut attribute_bytes)?;
-        PathAttribute::parse(stream, attribute_length)?;
-
-        let origin_attr = PathAttribute::ORIGIN(Origin::IGP);
+        let _attribute_length = stream.read_u16::<BigEndian>()?;
 
         let mut attributes: Vec<PathAttribute> = Vec::new();
-        attributes.push(origin_attr);
+
+        loop {
+            match PathAttribute::parse(stream) {
+                Ok(attribute) => attributes.push(attribute),
+                Err(e) => match e.kind() {
+                    std::io::ErrorKind::UnexpectedEof => break,
+                    _ => return Err(e),
+                },
+            };
+        }
 
         Ok(RIBEntry {
             peer_index,
@@ -753,9 +780,30 @@ mod tests {
     use std::io::Cursor;
 
     #[test]
+    fn parse_origin_igp_from_rib_entry() -> Result<(), Error> {
+        let mut rdr = Cursor::new(vec![0, 2, 0, 0, 0, 123, 0, 4, 64, 1, 1, 0]);
+        let have = RIBEntry::parse(&mut rdr)?;
+
+        let mut attributes: Vec<PathAttribute> = Vec::new();
+
+        // Origin: [64, 1, 1, 0]
+        let origin_attribute = PathAttribute::ORIGIN(Origin::IGP);
+        attributes.push(origin_attribute);
+
+        let want = RIBEntry {
+            peer_index: 2,
+            originated_time: 123,
+            attributes,
+        };
+
+        assert_eq!(have, want);
+        Ok(())
+    }
+
+    #[test]
     fn parse_origin_igp() -> Result<(), Error> {
         let mut rdr = Cursor::new(vec![64, 1, 1, 0]);
-        let have = PathAttribute::parse(&mut rdr, 4u16)?;
+        let have = PathAttribute::parse(&mut rdr)?;
         let want = PathAttribute::ORIGIN(Origin::IGP);
 
         assert_eq!(have, want);
@@ -765,7 +813,7 @@ mod tests {
     #[test]
     fn parse_origin_egp() -> Result<(), Error> {
         let mut rdr = Cursor::new(vec![64, 1, 1, 1]);
-        let have = PathAttribute::parse(&mut rdr, 4u16)?;
+        let have = PathAttribute::parse(&mut rdr)?;
         let want = PathAttribute::ORIGIN(Origin::EGP);
 
         assert_eq!(have, want);
@@ -775,7 +823,7 @@ mod tests {
     #[test]
     fn parse_origin_incomplete() -> Result<(), Error> {
         let mut rdr = Cursor::new(vec![64, 1, 1, 2]);
-        let have = PathAttribute::parse(&mut rdr, 4u16)?;
+        let have = PathAttribute::parse(&mut rdr)?;
         let want = PathAttribute::ORIGIN(Origin::INCOMPLETE);
 
         assert_eq!(have, want);
@@ -785,7 +833,7 @@ mod tests {
     #[test]
     fn parse_aspath_unordered() -> Result<(), Error> {
         let mut rdr = Cursor::new(vec![64, 2, 10, 1, 2, 0, 0, 165, 233, 0, 0, 5, 19]);
-        let have = PathAttribute::parse(&mut rdr, 13u16)?;
+        let have = PathAttribute::parse(&mut rdr)?;
         let as_path_values = AsPath {
             segment_type: SegmentType::AS_SET,
             as_path: vec![42473, 1299],
@@ -799,7 +847,7 @@ mod tests {
     #[test]
     fn parse_aspath_ordered() -> Result<(), Error> {
         let mut rdr = Cursor::new(vec![64, 2, 10, 2, 2, 0, 0, 165, 233, 0, 0, 5, 19]);
-        let have = PathAttribute::parse(&mut rdr, 13u16)?;
+        let have = PathAttribute::parse(&mut rdr)?;
         let as_path_values = AsPath {
             segment_type: SegmentType::AS_SEQUENCE,
             as_path: vec![42473, 1299],
@@ -831,7 +879,7 @@ mod tests {
     #[test]
     fn parse_next_hop_ipv4() -> Result<(), Error> {
         let mut rdr = Cursor::new(vec![64, 3, 4, 195, 66, 226, 113]);
-        let have = PathAttribute::parse(&mut rdr, 7u16)?;
+        let have = PathAttribute::parse(&mut rdr)?;
         let next_hop = IpAddr::from([195u8, 66u8, 226u8, 113u8]);
         let want = PathAttribute::NEXTHOP(NextHop { next_hop });
 
@@ -845,9 +893,8 @@ mod tests {
             192, 8, 24, 184, 43, 5, 222, 184, 43, 7, 208, 184, 43, 8, 64, 184, 43, 8, 252, 184, 43,
             9, 112, 184, 43, 10, 40,
         ];
-        let community_byte_len = community_bytes.len() as u16;
         let mut rdr = Cursor::new(community_bytes);
-        let have = PathAttribute::parse(&mut rdr, community_byte_len)?;
+        let have = PathAttribute::parse(&mut rdr)?;
 
         // 47147:1502 47147:2000 47147:2112 47147:2300 47147:2416 47147:2600
         let mut communities: Vec<(u16, u16)> = Vec::new();
@@ -861,6 +908,64 @@ mod tests {
 
         assert_eq!(have, want);
 
+        Ok(())
+    }
+
+    #[test]
+    fn parse_full_stream() -> Result<(), Error> {
+        let path_attributes = vec![
+            0, 2, 0, 0, 0, 123, 0, 66, 64, 1, 1, 0, 64, 2, 10, 2, 2, 0, 0, 165, 233, 0, 0, 5, 19,
+            64, 3, 4, 195, 66, 226, 113, 128, 4, 4, 0, 0, 0, 0, 192, 8, 24, 184, 43, 5, 222, 184,
+            43, 7, 208, 184, 43, 8, 64, 184, 43, 8, 252, 184, 43, 9, 112, 184, 43, 10, 40,
+        ];
+
+        let mut rdr = Cursor::new(path_attributes);
+
+        let have = RIBEntry::parse(&mut rdr)?;
+
+        let mut attributes: Vec<PathAttribute> = Vec::new();
+
+        // Origin: [64, 1, 1, 0]
+        let origin_attribute = PathAttribute::ORIGIN(Origin::IGP);
+        attributes.push(origin_attribute);
+
+        // AS Path: [64, 2, 10, 2, 2, 0, 0, 165, 233, 0, 0, 5, 19]
+        let as_path_values = AsPath {
+            segment_type: SegmentType::AS_SEQUENCE,
+            as_path: vec![42473, 1299],
+        };
+        let as_path_attribute = PathAttribute::ASPATH(as_path_values);
+        attributes.push(as_path_attribute);
+
+        // Next Hop: [64, 3, 4, 195, 66, 226, 113]
+        let next_hop = IpAddr::from([195u8, 66u8, 226u8, 113u8]);
+        let next_hop_attribute = PathAttribute::NEXTHOP(NextHop { next_hop });
+        attributes.push(next_hop_attribute);
+
+        // Multi Exit Disc: [128, 4, 4, 0, 0, 0, 0]
+        let ip = IpAddr::from([0u8, 0u8, 0u8, 0u8]);
+        let multi_exit_disc_attribute = PathAttribute::MULTIEXITDISC(MultiExitDisc { ip });
+        attributes.push(multi_exit_disc_attribute);
+
+        // Community: [128, 4, 4, 0, 0, 0, 0, 192, 8, 24, 184, 43, 5, 222, 184, 43, 7, 208, 184, 43, 8, 64, 184, 43, 8, 252, 184, 43, 9, 112, 184, 43, 10, 40]
+        // 47147:1502 47147:2000 47147:2112 47147:2300 47147:2416 47147:2600
+        let mut communities: Vec<(u16, u16)> = Vec::new();
+        communities.push((47147, 1502));
+        communities.push((47147, 2000));
+        communities.push((47147, 2112));
+        communities.push((47147, 2300));
+        communities.push((47147, 2416));
+        communities.push((47147, 2600));
+        let communities = PathAttribute::COMMUNITY(Community { communities });
+        attributes.push(communities);
+
+        let want = RIBEntry {
+            peer_index: 2,
+            originated_time: 123,
+            attributes,
+        };
+
+        assert_eq!(want, have);
         Ok(())
     }
 }
