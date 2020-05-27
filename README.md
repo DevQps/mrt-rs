@@ -1,5 +1,7 @@
 # Multi-Threaded Routing Toolkit in Rust (mrt-rs)
-[![Build Status](https://travis-ci.com/DevQps/mrt-rs.svg?branch=master)](https://travis-ci.com/DevQps/mrt-rs) [![codecov](https://codecov.io/gh/DevQps/mrt-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/DevQps/mrt-rs)
+[![Build Status](https://travis-ci.com/DevQps/mrt-rs.svg?branch=master)](https://travis-ci.com/DevQps/mrt-rs)
+[![codecov](https://codecov.io/gh/DevQps/mrt-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/DevQps/mrt-rs)
+[![Crates](https://img.shields.io/crates/v/mrt_rs.svg)](https://crates.io/crates/mrt-rs)
 
 A library for parsing Multi-Threaded Routing Toolkit (MRT) formatted streams in Rust.
 
@@ -42,8 +44,7 @@ fn main() {
     }
 }
 ```
-Note: MRT data is often compressed to reduce size, make sure to decompress the files first before attempting to parse them.
-
+**Note:** MRT data is often compressed to reduce size, make sure to decompress the files first before attempting to parse them.
 
 For full documentation look [here](https://docs.rs/mrt-rs/).
 If one seeks to ultimately parse BGP messages [bgp-rs](https://github.com/DevQps/bgp-rs) can be used to do so.
