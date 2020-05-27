@@ -7,14 +7,11 @@ fn test_samples() {
     for entry in fs::read_dir("res/").unwrap() {
         let path = entry.unwrap().path();
         if path.is_file() {
-            let file = File::open(path.to_str().unwrap()).unwrap();
-            println!("Parsing: {:?}", file);
-
-            // Create a new MRTReader with a Cursor such that we can keep track of the position.
-            let mut reader = mrt_rs::Reader { stream: file };
+            let mut file = File::open(path.to_str().unwrap()).unwrap();
+            println!("\nParsing: {:?}", file);
 
             // Read a (Header, Record) tuple.
-            while let Some((_, record)) = reader.read().unwrap() {
+            while let Some((_, record)) = mrt_rs::read(&mut file).unwrap() {
                 println!("{:?}", record);
                 match record {
                     _ => continue,

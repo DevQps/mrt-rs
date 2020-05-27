@@ -21,7 +21,7 @@ pub enum BGP {
 
 /// Used for the deprecated BGP message type.
 impl BGP {
-    pub(crate) fn parse(header: &Header, stream: &mut Read) -> Result<BGP, Error> {
+    pub(crate) fn parse(header: &Header, stream: impl Read) -> Result<BGP, Error> {
         match header.sub_type {
             0 => Ok(BGP::NULL),
             1 => Ok(BGP::UPDATE(MESSAGE::parse(header, stream)?)),
@@ -60,7 +60,7 @@ pub struct MESSAGE {
 }
 
 impl MESSAGE {
-    fn parse(header: &Header, stream: &mut Read) -> Result<MESSAGE, Error> {
+    fn parse(header: &Header, mut stream: impl Read) -> Result<MESSAGE, Error> {
         let peer_as = stream.read_u16::<BigEndian>()?;
         let peer_ip = Ipv4Addr::from(stream.read_u32::<BigEndian>()?);
         let local_as = stream.read_u16::<BigEndian>()?;
@@ -101,7 +101,7 @@ pub struct STATE_CHANGE {
 }
 
 impl STATE_CHANGE {
-    fn parse(stream: &mut Read) -> Result<STATE_CHANGE, Error> {
+    fn parse(mut stream: impl Read) -> Result<STATE_CHANGE, Error> {
         Ok(STATE_CHANGE {
             peer_as: stream.read_u16::<BigEndian>()?,
             peer_ip: Ipv4Addr::from(stream.read_u32::<BigEndian>()?),
@@ -123,7 +123,7 @@ pub struct SYNC {
 }
 
 impl SYNC {
-    fn parse(stream: &mut Read) -> Result<SYNC, Error> {
+    fn parse(mut stream: impl Read) -> Result<SYNC, Error> {
         let view_number = stream.read_u16::<BigEndian>()?;
         let mut filename = Vec::new();
 
