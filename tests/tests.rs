@@ -13,9 +13,6 @@ fn test_samples() {
             // Read a (Header, Record) tuple.
             while let Some((_, record)) = mrt_rs::read(&mut file).unwrap() {
                 println!("{:?}", record);
-                match record {
-                    _ => continue,
-                }
             }
         }
     }
