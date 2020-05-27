@@ -15,7 +15,7 @@ exclude = [
     "README.md",
     "res/*",
     "tests/*",
-    ".travis.yml"
+    ".github/*"
 ]
 
 [badges]
