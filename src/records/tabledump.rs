@@ -53,7 +53,7 @@ impl TABLE_DUMP {
     /// # Safety
     /// This function does not make use of unsafe code.
     ///
-    pub fn parse(header: &Header, stream: &mut Read) -> Result<TABLE_DUMP, Error> {
+    pub fn parse(header: &Header, mut stream: impl Read) -> Result<TABLE_DUMP, Error> {
         let view_number = stream.read_u16::<BigEndian>()?;
         let sequence_number = stream.read_u16::<BigEndian>()?;
 
@@ -124,7 +124,7 @@ pub struct PEER_INDEX_TABLE {
 }
 
 impl PEER_INDEX_TABLE {
-    fn parse(stream: &mut Read) -> Result<PEER_INDEX_TABLE, Error> {
+    fn parse(mut stream: impl Read) -> Result<PEER_INDEX_TABLE, Error> {
         let collector_id = stream.read_u32::<BigEndian>()?;
         let view_name_length = stream.read_u16::<BigEndian>()?;
 
@@ -135,7 +135,7 @@ impl PEER_INDEX_TABLE {
         let peer_count = stream.read_u16::<BigEndian>()?;
         let mut peer_entries: Vec<PeerEntry> = Vec::with_capacity(peer_count as usize);
         for _ in 0..peer_count {
-            peer_entries.push(PeerEntry::parse(stream)?);
+            peer_entries.push(PeerEntry::parse(&mut stream)?);
         }
 
         Ok(PEER_INDEX_TABLE {
@@ -163,7 +163,7 @@ pub struct PeerEntry {
 }
 
 impl PeerEntry {
-    fn parse(stream: &mut Read) -> Result<PeerEntry, Error> {
+    fn parse(mut stream: impl Read) -> Result<PeerEntry, Error> {
         let peer_type = stream.read_u8()?;
         let ipv6 = (peer_type & 1) != 0;
         let as_size = (peer_type & 2) != 0;
@@ -204,7 +204,7 @@ pub struct RIBEntry {
 }
 
 impl RIBEntry {
-    fn parse(stream: &mut Read) -> Result<RIBEntry, Error> {
+    fn parse(mut stream: impl Read) -> Result<RIBEntry, Error> {
         let peer_index = stream.read_u16::<BigEndian>()?;
         let originated_time = stream.read_u32::<BigEndian>()?;
         let attribute_length = stream.read_u16::<BigEndian>()?;
@@ -238,7 +238,7 @@ pub struct RIB_AFI {
 }
 
 impl RIB_AFI {
-    fn parse(stream: &mut Read) -> Result<RIB_AFI, Error> {
+    fn parse(mut stream: impl Read) -> Result<RIB_AFI, Error> {
         let sequence_number = stream.read_u32::<BigEndian>()?;
 
         let prefix_length: u8 = stream.read_u8()?;
@@ -249,7 +249,7 @@ impl RIB_AFI {
         let entry_count = stream.read_u16::<BigEndian>()?;
         let mut entries: Vec<RIBEntry> = Vec::with_capacity(entry_count as usize);
         for _ in 0..entry_count {
-            entries.push(RIBEntry::parse(stream)?);
+            entries.push(RIBEntry::parse(&mut stream)?);
         }
 
         Ok(RIB_AFI {
@@ -282,7 +282,7 @@ pub struct RIB_GENERIC {
 }
 
 impl RIB_GENERIC {
-    fn parse(stream: &mut Read) -> Result<RIB_GENERIC, Error> {
+    fn parse(mut stream: impl Read) -> Result<RIB_GENERIC, Error> {
         let sequence_number = stream.read_u32::<BigEndian>()?;
         let afi = AFI::from(stream.read_u16::<BigEndian>()?)?;
         let safi = stream.read_u8()?;
@@ -306,7 +306,7 @@ impl RIB_GENERIC {
         let entry_count = stream.read_u16::<BigEndian>()?;
         let mut entries: Vec<RIBEntry> = Vec::with_capacity(entry_count as usize);
         for _ in 0..entry_count {
-            entries.push(RIBEntry::parse(stream)?);
+            entries.push(RIBEntry::parse(&mut stream)?);
         }
 
         Ok(RIB_GENERIC {
@@ -336,7 +336,7 @@ pub struct RIBEntryAddPath {
 }
 
 impl RIBEntryAddPath {
-    fn parse(stream: &mut Read) -> Result<RIBEntryAddPath, Error> {
+    fn parse(mut stream: impl Read) -> Result<RIBEntryAddPath, Error> {
         let peer_index = stream.read_u16::<BigEndian>()?;
         let originated_time = stream.read_u32::<BigEndian>()?;
         let path_identifier = stream.read_u32::<BigEndian>()?;
@@ -371,7 +371,7 @@ pub struct RIB_AFI_ADDPATH {
 }
 
 impl RIB_AFI_ADDPATH {
-    fn parse(stream: &mut Read) -> Result<RIB_AFI_ADDPATH, Error> {
+    fn parse(mut stream: impl Read) -> Result<RIB_AFI_ADDPATH, Error> {
         let sequence_number = stream.read_u32::<BigEndian>()?;
         let prefix_length: u8 = stream.read_u8()?;
         let length: u8 = (prefix_length + 7) / 8;
@@ -381,7 +381,7 @@ impl RIB_AFI_ADDPATH {
         let entry_count = stream.read_u16::<BigEndian>()?;
         let mut entries: Vec<RIBEntryAddPath> = Vec::with_capacity(entry_count as usize);
         for _ in 0..entry_count {
-            entries.push(RIBEntryAddPath::parse(stream)?);
+            entries.push(RIBEntryAddPath::parse(&mut stream)?);
         }
 
         Ok(RIB_AFI_ADDPATH {
@@ -414,7 +414,7 @@ pub struct RIB_GENERIC_ADDPATH {
 }
 
 impl RIB_GENERIC_ADDPATH {
-    fn parse(stream: &mut Read) -> Result<RIB_GENERIC_ADDPATH, Error> {
+    fn parse(mut stream: impl Read) -> Result<RIB_GENERIC_ADDPATH, Error> {
         let sequence_number = stream.read_u32::<BigEndian>()?;
         let afi = AFI::from(stream.read_u16::<BigEndian>()?)?;
         let safi = stream.read_u8()?;
@@ -438,7 +438,7 @@ impl RIB_GENERIC_ADDPATH {
         let entry_count = stream.read_u16::<BigEndian>()?;
         let mut entries: Vec<RIBEntryAddPath> = Vec::with_capacity(entry_count as usize);
         for _ in 0..entry_count {
-            entries.push(RIBEntryAddPath::parse(stream)?);
+            entries.push(RIBEntryAddPath::parse(&mut stream)?);
         }
 
         Ok(RIB_GENERIC_ADDPATH {
@@ -467,7 +467,7 @@ impl TABLE_DUMP_V2 {
     /// # Safety
     /// This function does not make use of unsafe code.
     ///
-    pub fn parse(header: &Header, stream: &mut Read) -> Result<TABLE_DUMP_V2, Error> {
+    pub fn parse(header: &Header, stream: impl Read) -> Result<TABLE_DUMP_V2, Error> {
         match header.sub_type {
             1 => Ok(TABLE_DUMP_V2::PEER_INDEX_TABLE(PEER_INDEX_TABLE::parse(
                 stream,

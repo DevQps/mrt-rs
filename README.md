@@ -1,13 +1,14 @@
 # Multi-Threaded Routing Toolkit in Rust (mrt-rs)
-[![Build Status](https://travis-ci.com/DevQps/mrt-rs.svg?branch=master)](https://travis-ci.com/DevQps/mrt-rs) [![codecov](https://codecov.io/gh/DevQps/mrt-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/DevQps/mrt-rs)
+[![Build Status](https://github.com/DevQps/mrt-rs/workflows/CI/badge.svg)](https://github.com/DevQps/mrt-rs)
+[![codecov](https://codecov.io/gh/DevQps/mrt-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/DevQps/mrt-rs)
+[![Crates](https://img.shields.io/crates/v/mrt_rs.svg)](https://crates.io/crates/mrt-rs)
 
 A library for parsing Multi-Threaded Routing Toolkit (MRT) formatted streams in Rust.
 
 ## Examples & Documentation
-If not using Rust 2018 edition:
+If not using Rust 2018 edition add the following in order to use mrt_rs:
 ```
 extern mrt_rs;
-extern libflate;
 ```
 
 Reading a MRT file containing BPG messages:
@@ -22,7 +23,7 @@ use libflate::gzip::Decoder;
 
 fn main() {
     // Open an MRT-formatted file.
-    let file = File::open("res/updates.20190101.0000.gz").unwrap();
+    let file = File::open("myfile.mrt").unwrap();
 
     // Decode the GZIP stream using BufReader for better performance.
     let mut decoder = Decoder::new(BufReader::new(file)).unwrap();
@@ -43,10 +44,11 @@ fn main() {
     }
 }
 ```
+**Note:** MRT data is often compressed to reduce size, make sure to decompress the files first before attempting to parse them.
+
 For full documentation look [here](https://docs.rs/mrt-rs/).
 If one seeks to ultimately parse BGP messages [bgp-rs](https://github.com/DevQps/bgp-rs) can be used to do so.
 Examples on how [bgp-rs](https://github.com/DevQps/bgp-rs) and [mrt-rs](https://github.com/DevQps/mrt-rs) interact are provided [here](https://docs.rs/bgp-rs).
-
 
 ## Full support
 All MRT record types, including deprecated types, that are mentioned in [RFC6396](https://tools.ietf.org/html/rfc6396) and [RFC8050](https://tools.ietf.org/html/rfc8050) are supported.
