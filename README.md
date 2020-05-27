@@ -1,7 +1,7 @@
 # Multi-Threaded Routing Toolkit in Rust (mrt-rs)
-[![Build Status](https://github.com/DevQps/rsef-rs/workflows/CI/badge.svg)](https://github.com/DevQps/mrt-rs)
-[![codecov](https://codecov.io/gh/DevQps/rsef-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/DevQps/mrt-rs)
-[![Crates](https://img.shields.io/crates/v/rsef-rs.svg)](https://crates.io/crates/mrt-rs)
+[![Build Status](https://github.com/DevQps/mrt-rs/workflows/Validation/badge.svg)](https://github.com/DevQps/mrt-rs)
+[![codecov](https://codecov.io/gh/DevQps/mrt-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/DevQps/mrt-rs)
+[![Crates](https://img.shields.io/crates/v/mrt_rs.svg)](https://crates.io/crates/mrt-rs)
 
 A library for parsing Multi-Threaded Routing Toolkit (MRT) formatted streams in Rust.
 
