@@ -1,5 +1,5 @@
 # Multi-Threaded Routing Toolkit in Rust (mrt-rs)
-[![Build Status](https://travis-ci.com/DevQps/mrt-rs.svg?branch=master)](https://travis-ci.com/DevQps/mrt-rs)
+[![Build Status](https://github.com/DevQps/mrt-rs/workflows/CI/badge.svg)](https://github.com/DevQps/mrt-rs)
 [![codecov](https://codecov.io/gh/DevQps/mrt-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/DevQps/mrt-rs)
 [![Crates](https://img.shields.io/crates/v/mrt_rs.svg)](https://crates.io/crates/mrt-rs)
 
